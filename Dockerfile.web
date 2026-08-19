@@ -1,0 +1,30 @@
+# --- build -------------------------------------------------------------------
+FROM node:22-alpine AS build
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY worker/package.json ./worker/
+COPY web/package.json ./web/
+RUN npm ci --workspace web --include-workspace-root
+
+COPY web ./web
+# NEXT_PUBLIC_* variables are inlined here, so they must be set on the Railway
+# service before the build runs.
+RUN npm run build --workspace web
+
+# --- runtime -----------------------------------------------------------------
+FROM node:22-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package.json package-lock.json ./
+COPY worker/package.json ./worker/
+COPY web/package.json ./web/
+RUN npm ci --omit=dev --workspace web --include-workspace-root && npm cache clean --force
+
+COPY --from=build /app/web/.next ./web/.next
+COPY --from=build /app/web/public ./web/public
+COPY web/next.config.mjs ./web/next.config.mjs
+
+EXPOSE 3000
+CMD ["npm", "run", "start", "--workspace", "web"]

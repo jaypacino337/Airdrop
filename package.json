@@ -1,0 +1,23 @@
+{
+  "name": "moderna-airdrop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Moderna (MRNA) — automated pump.fun creator-fee claim, MRNAx buyback and pro-rata airdrop engine.",
+  "workspaces": [
+    "worker",
+    "web"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev:worker": "npm run dev --workspace worker",
+    "dev:web": "npm run dev --workspace web",
+    "build": "npm run build --workspace worker && npm run build --workspace web",
+    "build:worker": "npm run build --workspace worker",
+    "build:web": "npm run build --workspace web",
+    "start:worker": "npm run start --workspace worker",
+    "test": "npm run test --workspace worker",
+    "typecheck": "npm run typecheck --workspace worker && npm run typecheck --workspace web"
+  }
+}
