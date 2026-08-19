@@ -35,7 +35,8 @@ export function Eligibility() {
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand">
               Eligibility
             </p>
-            <h2 className="text-balance text-4xl font-semibold tracking-tight md:text-5xl">
+            <div className="flag-rule mb-5" />
+            <h2 className="text-balance text-4xl font-semibold tracking-tight text-navy md:text-5xl">
               The rules, in full.
             </h2>
             <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">
@@ -43,12 +44,12 @@ export function Eligibility() {
               there is no manual list and no discretion.
             </p>
 
-            <ul className="mt-10 flex flex-col gap-px overflow-hidden rounded-xl bg-border">
+            <ul className="card-raise mt-10 flex flex-col gap-px overflow-hidden rounded-xl border border-border bg-border">
               {rules.map((rule) => {
                 const Icon = rule.icon;
                 return (
                   <li key={rule.title} className="flex gap-4 bg-background p-6">
-                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted text-brand">
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-primary">
                       <Icon className="h-4 w-4" />
                     </span>
                     <div>

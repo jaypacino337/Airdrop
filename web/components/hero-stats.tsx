@@ -29,7 +29,7 @@ export function HeroStats() {
       {cells.map((cell) => (
         <div
           key={cell.label}
-          className="rounded-lg border border-border bg-surface/50 px-4 py-5 text-center"
+          className="card-raise rounded-lg border border-border bg-card px-4 py-5 text-center"
         >
           <dd
             className="tnum text-2xl font-semibold tracking-tight text-brand"

@@ -34,7 +34,8 @@ export function HowItWorks() {
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand">
             The {cycleMinutes}-minute cycle
           </p>
-          <h2 className="text-balance text-4xl font-semibold tracking-tight md:text-5xl">
+          <div className="flag-rule mb-5" />
+          <h2 className="text-balance text-4xl font-semibold tracking-tight text-navy md:text-5xl">
             Four steps, on a loop, forever.
           </h2>
           <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
@@ -43,13 +44,13 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <ol className="hairline-grid grid overflow-hidden rounded-xl sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="hairline-grid card-raise grid overflow-hidden rounded-xl border border-border sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, index) => {
             const Icon = step.icon;
             return (
               <li key={step.title} className="flex flex-col gap-4 bg-background p-8">
                 <div className="flex items-center justify-between">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-muted text-brand">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-md border border-border bg-surface text-primary">
                     <Icon className="h-5 w-5" />
                   </span>
                   <span className="tnum font-mono text-sm text-muted-foreground">

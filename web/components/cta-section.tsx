@@ -4,18 +4,18 @@ import { cycleMinutes, rewardList, siteConfig, solscanToken } from '@/lib/config
 
 export function CtaSection() {
   return (
-    <section className="relative overflow-hidden border-t border-border py-24">
-      <div aria-hidden className="grid-backdrop pointer-events-none absolute inset-0 rotate-180" />
+    <section className="relative overflow-hidden border-t border-border bg-[var(--flag-navy-deep)] py-24 text-white">
       <div
         aria-hidden
-        className="brand-glow pointer-events-none absolute left-1/2 top-1/2 h-72 w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl"
+        className="pointer-events-none absolute inset-x-0 top-0 h-1"
+        style={{ background: 'linear-gradient(to right, var(--flag-red) 0 50%, #ffffff 50% 100%)' }}
       />
 
       <div className="relative mx-auto max-w-3xl px-6 text-center">
         <h2 className="text-balance text-4xl font-semibold tracking-tight md:text-6xl">
           The clock is already running.
         </h2>
-        <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
+        <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/75">
           The next snapshot happens in under {cycleMinutes} minutes, whether or not you are in it.
           Hold {siteConfig.ticker} and you are — paid in {rewardList}, automatically.
         </p>
@@ -33,7 +33,7 @@ export function CtaSection() {
           ) : null}
           <Link
             href="/dashboard"
-            className="text-sm text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+            className="text-sm text-white/70 underline underline-offset-4 transition-colors hover:text-white"
           >
             Watch the live dashboard
           </Link>

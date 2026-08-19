@@ -40,8 +40,8 @@ export function WalletChecker() {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 md:p-8">
-      <h3 className="text-lg font-semibold">Check a wallet</h3>
+    <div className="card-raise rounded-xl border border-border bg-card p-6 md:p-8">
+      <h3 className="text-lg font-semibold text-navy">Check a wallet</h3>
       <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
         See where an address stood in the most recent snapshot, and what it has been paid in{' '}
         {rewardList}.
@@ -102,11 +102,11 @@ function WalletResult({ data }: { data: WalletResponse }) {
     <div className="mt-6 flex flex-col gap-4">
       <div
         className={`flex items-start gap-3 rounded-lg border px-4 py-3.5 ${
-          eligible ? 'border-accent/30 bg-accent/10' : 'border-border bg-surface'
+          eligible ? 'border-navy/25 bg-navy/[0.06]' : 'border-border bg-surface'
         }`}
       >
         {eligible ? (
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-navy" />
         ) : (
           <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
         )}

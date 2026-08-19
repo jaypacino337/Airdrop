@@ -16,7 +16,7 @@ const columns = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-border pt-16 pb-10">
+    <footer className="border-t border-border bg-surface pt-16 pb-10">
       <div className="mx-auto max-w-7xl px-6">
         <div className="flex flex-col gap-10 md:flex-row md:gap-0">
           <div className="shrink-0 md:w-80">
@@ -30,7 +30,7 @@ export function Footer() {
           <div className="grid grid-cols-2 gap-8 md:flex md:flex-1 md:justify-end md:gap-16">
             {columns.map((column) => (
               <div key={column.heading}>
-                <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-foreground">
+                <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-navy">
                   {column.heading}
                 </p>
                 <ul className="flex flex-col gap-2.5">
@@ -49,7 +49,7 @@ export function Footer() {
             ))}
 
             <div>
-              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-foreground">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-navy">
                 On-chain
               </p>
               <ul className="flex flex-col gap-2.5">

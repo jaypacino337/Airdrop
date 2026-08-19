@@ -72,7 +72,7 @@ export function DashboardView() {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6">
       <header>
-        <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">Live dashboard</h1>
+        <h1 className="text-4xl font-semibold tracking-tight text-navy md:text-5xl">Live dashboard</h1>
         <p className="mt-2 text-muted-foreground">
           Every claim, buy, snapshot and transfer the engine has made across {rewardList} —
           refreshed automatically.
@@ -94,7 +94,7 @@ export function DashboardView() {
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_2fr]">
-        <div className="flex items-center justify-center rounded-xl border border-border bg-card p-8">
+        <div className="card-raise flex items-center justify-center rounded-xl border border-border bg-card p-8">
           <NextDrop size="lg" />
         </div>
 
@@ -292,7 +292,7 @@ function RewardBreakdown({ rewards }: { rewards: CycleReward[] }) {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div className="card-raise rounded-xl border border-border bg-card p-6">
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
       <p className="tnum mt-2 text-3xl font-semibold tracking-tight text-brand">{value}</p>
       {sub ? <p className="mt-1 text-xs text-muted-foreground">{sub}</p> : null}
@@ -310,9 +310,9 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-card p-6">
+    <section className="card-raise rounded-xl border border-border bg-card p-6">
       <div className="mb-5">
-        <h2 className="text-lg font-semibold">{title}</h2>
+        <h2 className="text-lg font-semibold text-navy">{title}</h2>
         {subtitle ? <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p> : null}
       </div>
       {children}
@@ -332,7 +332,7 @@ function Banner({ icon, text }: { icon: React.ReactNode; text: string }) {
 function StatusPill({ status, dryRun }: { status: Cycle['status']; dryRun: boolean }) {
   const tone =
     status === 'completed'
-      ? 'border-accent/30 bg-accent/10 text-accent'
+      ? 'border-navy/25 bg-navy/[0.06] text-navy'
       : status === 'failed'
         ? 'border-primary/30 bg-primary/10 text-brand'
         : 'border-border bg-surface text-muted-foreground';

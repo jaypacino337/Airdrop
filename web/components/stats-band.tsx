@@ -22,7 +22,7 @@ export function StatsBand() {
   return (
     <section className="border-t border-border">
       <div className="mx-auto max-w-7xl px-6 py-16">
-        <div className="hairline-grid grid grid-cols-2 overflow-hidden rounded-xl md:grid-cols-4">
+        <div className="hairline-grid card-raise grid grid-cols-2 overflow-hidden rounded-xl border border-border md:grid-cols-4">
           {cells.map((cell) => (
             <div key={cell.label} className="flex flex-col gap-1.5 bg-background p-8 md:p-10">
               <span className="tnum text-4xl font-semibold tracking-tight text-brand">

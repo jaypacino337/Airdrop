@@ -1,5 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Trump Strategy">
-  <rect width="64" height="64" rx="14" fill="#111113"/>
-  <path d="M32 10 50 16.5V32c0 10.5-7.2 18.4-18 21.8C21.2 50.4 14 42.5 14 32V16.5L32 10z" fill="none" stroke="#e05445" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M32 21l3.1 6.7 7.2.8-5.4 5 1.4 7.2L32 37.2l-6.3 3.5 1.4-7.2-5.4-5 7.2-.8L32 21z" fill="#e05445"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Trump Strategy">
+  <defs>
+    <clipPath id="c">
+      <path d="M78 108C40 96 16 64 10 8C30 54 56 82 94 94Z"/>
+      <path d="M122 108C160 96 184 64 190 8C170 54 144 82 106 94Z"/>
+      <path d="M58 64C62 104 70 142 82 170C86 178 114 178 118 170C130 142 138 104 142 64Z"/>
+    </clipPath>
+    <pattern id="s" width="26" height="22" patternUnits="userSpaceOnUse">
+      <path d="M13 4.5l2.1 4.5 4.9.6-3.6 3.4 1 4.9L13 15.5 8.6 17.9l1-4.9L6 9.6l4.9-.6z" fill="#ffffff"/>
+    </pattern>
+  </defs>
+  <g fill="none" stroke="#16306b" stroke-opacity="0.6" stroke-width="8" stroke-linejoin="round">
+    <path d="M78 108C40 96 16 64 10 8C30 54 56 82 94 94Z"/>
+    <path d="M122 108C160 96 184 64 190 8C170 54 144 82 106 94Z"/>
+    <path d="M58 64C62 104 70 142 82 170C86 178 114 178 118 170C130 142 138 104 142 64Z"/>
+  </g>
+  <g clip-path="url(#c)">
+    <rect width="200" height="200" fill="#ffffff"/>
+    <rect y="0" width="200" height="15.4" fill="#d3202a"/>
+    <rect y="30.8" width="200" height="15.4" fill="#d3202a"/>
+    <rect y="61.6" width="200" height="15.4" fill="#d3202a"/>
+    <rect y="92.4" width="200" height="15.4" fill="#d3202a"/>
+    <rect y="123.2" width="200" height="15.4" fill="#d3202a"/>
+    <rect y="154" width="200" height="15.4" fill="#d3202a"/>
+    <rect y="184.8" width="200" height="15.4" fill="#d3202a"/>
+    <rect width="98" height="106" fill="#16306b"/>
+    <rect width="98" height="106" fill="url(#s)"/>
+  </g>
 </svg>

@@ -13,6 +13,7 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-brand: var(--brand);
+  --color-navy: var(--navy);
   --color-accent: var(--accent);
   --color-border: var(--border);
   --color-ring: var(--ring);
@@ -23,24 +24,32 @@
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* Near-black base, red brand, blue for live and confirmed data. */
-  --background: oklch(0.09 0.005 265);
-  --foreground: oklch(0.97 0 0);
+  /* Flag palette: white ground, one red, one navy. */
+  --flag-red: #d3202a;
+  --flag-red-deep: #b3151f;
+  --flag-navy: #16306b;
+  --flag-navy-deep: #0d1f4a;
+  /* The "white" letters of the wordmark: barely off-white, read by their shadow. */
+  --flag-white-ink: #f1f3f7;
 
-  --card: oklch(0.13 0.006 265);
-  --surface: oklch(0.16 0.008 265);
-  --muted: oklch(0.19 0.008 265);
-  --muted-foreground: oklch(0.66 0.01 265);
+  --background: #ffffff;
+  --foreground: #101a33;
 
-  --primary: oklch(0.58 0.22 27);          /* buttons — white text passes AA */
-  --primary-foreground: oklch(0.99 0 0);
-  --brand: oklch(0.72 0.19 25);            /* numerals + accents on dark */
-  --accent: oklch(0.7 0.15 255);           /* live / confirmed data */
+  --card: #ffffff;
+  --surface: #f5f7fb;
+  --muted: #eef1f7;
+  --muted-foreground: #5c6a85;
 
-  --border: oklch(1 0 0 / 9%);
-  --ring: oklch(0.72 0.19 25);
+  --primary: var(--flag-red);
+  --primary-foreground: #ffffff;
+  --brand: var(--flag-red-deep);   /* numerals and accents on white */
+  --navy: var(--flag-navy);
+  --accent: var(--flag-navy);      /* live / confirmed data */
+
+  --border: rgba(16, 26, 51, 0.12);
+  --ring: var(--flag-navy);
 }
 
 @layer base {
@@ -61,7 +70,7 @@
   }
 
   ::selection {
-    background: oklch(0.72 0.19 25 / 30%);
+    background: rgba(211, 32, 42, 0.18);
   }
 
   :focus-visible {
@@ -81,22 +90,52 @@
   }
 }
 
-/* --- Utilities ----------------------------------------------------------- */
+/* --- Brand ---------------------------------------------------------------- */
 
-/* Faint engineering grid used behind the hero. */
+.wordmark {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+}
+.wordmark .ink-red { color: var(--flag-red); }
+.wordmark .ink-navy { color: var(--flag-navy); }
+.wordmark.compact .ink-white {
+  color: #b9c1d2;
+  text-shadow: none;
+}
+.wordmark .ink-white {
+  color: var(--flag-white-ink);
+  text-shadow:
+    0 1px 0 rgba(16, 26, 51, 0.16),
+    0 2px 6px rgba(16, 26, 51, 0.14);
+}
+
+/* --- Decorative ----------------------------------------------------------- */
+
+/* Faint engineering grid, dark lines on white. */
 .grid-backdrop {
   background-image:
-    linear-gradient(oklch(1 0 0 / 3.5%) 1px, transparent 1px),
-    linear-gradient(to right, oklch(1 0 0 / 3.5%) 1px, transparent 1px);
+    linear-gradient(rgba(16, 26, 51, 0.05) 1px, transparent 1px),
+    linear-gradient(to right, rgba(16, 26, 51, 0.05) 1px, transparent 1px);
   background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 0%, #000 35%, transparent 100%);
 }
 
+/* The soft red/blue wash behind the hero, as on the banner. */
 .brand-glow {
-  background: radial-gradient(ellipse at center, oklch(0.72 0.19 25 / 14%) 0%, transparent 70%);
+  background:
+    radial-gradient(ellipse 60% 60% at 15% 0%, rgba(22, 48, 107, 0.14) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 60% at 85% 10%, rgba(211, 32, 42, 0.14) 0%, transparent 70%);
 }
 
-/* Thin hairline separator used between stat cells. */
+/* Thin red/navy rule used under section headings. */
+.flag-rule {
+  height: 3px;
+  width: 4.5rem;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--flag-red) 0 50%, var(--flag-navy) 50% 100%);
+}
+
 .hairline-grid {
   background-color: var(--border);
   gap: 1px;
@@ -106,28 +145,23 @@
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.35; transform: scale(0.82); }
 }
-.pulse-dot {
-  animation: pulse-dot 2s ease-in-out infinite;
-}
+.pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
 
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fade-up {
-  animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-.marquee {
-  animation: marquee 40s linear infinite;
-}
+.fade-up { animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 /* Tabular numerals keep live counters from jittering. */
 .tnum {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
+}
+
+/* Cards sit on white, so they need a shadow rather than a lighter fill. */
+.card-raise {
+  box-shadow:
+    0 1px 2px rgba(16, 26, 51, 0.04),
+    0 8px 24px -12px rgba(16, 26, 51, 0.16);
 }

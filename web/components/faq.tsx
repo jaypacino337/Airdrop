@@ -50,15 +50,16 @@ export function Faq() {
       <div className="mx-auto max-w-7xl px-6">
         <div className="mb-14 max-w-2xl">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand">FAQ</p>
-          <h2 className="text-balance text-4xl font-semibold tracking-tight md:text-5xl">
+          <div className="flag-rule mb-5" />
+          <h2 className="text-balance text-4xl font-semibold tracking-tight text-navy md:text-5xl">
             Questions people actually ask.
           </h2>
         </div>
 
-        <div className="grid gap-px overflow-hidden rounded-xl bg-border md:grid-cols-2">
+        <div className="card-raise grid gap-px overflow-hidden rounded-xl border border-border bg-border md:grid-cols-2">
           {faqs.map((faq) => (
             <article key={faq.q} className="bg-background p-8">
-              <h3 className="mb-2 text-base font-semibold">{faq.q}</h3>
+              <h3 className="mb-2 text-base font-semibold text-navy">{faq.q}</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">{faq.a}</p>
             </article>
           ))}
