@@ -104,6 +104,20 @@ transfers when a mint declares one).
 The site reads Supabase directly through its own server-side API routes, so it
 does not need the worker to be publicly reachable.
 
+## 6b. Vercel instead of Railway for the site (optional)
+
+The worker must stay on Railway — it is a long-running process. The website is
+a normal Next.js app and deploys to Vercel just as well:
+
+1. Vercel → Add New → Project → import this repository.
+2. Leave the root directory as `/`. `vercel.json` already points the build at
+   the `web` workspace.
+3. Add the same variables from `web/.env.example` (`SUPABASE_URL`,
+   `SUPABASE_ANON_KEY`, and the `NEXT_PUBLIC_*` set).
+4. Deploy.
+
+Pick one host for the site — Railway or Vercel, not both.
+
 ## 7. Verify
 
 ```bash
