@@ -62,17 +62,32 @@ transfers when a mint declares one).
 1. New project → Deploy from GitHub repo → this repository.
 2. Service settings → **Config as code** → `railway.worker.json`.
    That points Railway at `Dockerfile.worker` and sets the `/health` check.
-3. Variables → paste the contents of `.env.example` and fill them in. Minimum:
+3. Variables → **to get a green deploy you only need these three**:
 
    ```
-   HELIUS_API_KEY=...
    SUPABASE_URL=...
    SUPABASE_SERVICE_ROLE_KEY=...
+   HELIUS_API_KEY=...
+   ```
+
+   Deploy now. The worker boots into **standby**: `/health` returns 200 and
+   lists exactly what is still missing, so nothing crash-loops while you go and
+   find the mints.
+
+   Then add the rest and redeploy to start distributing:
+
+   ```
    CREATOR_PRIVATE_KEY=...
    PROJECT_TOKEN_MINT=...
    REWARD_TOKENS=WLFI:<wlfi_mint>:5000,TRUMP:<trump_mint>:5000
    DRY_RUN=true
    ADMIN_TOKEN=<openssl rand -hex 32>
+   ```
+
+   Check what it is waiting for at any time:
+
+   ```bash
+   curl -s https://<worker-domain>/health | jq .missing
    ```
 
 4. Settings → **Replicas: 1**. This matters: two replicas share one wallet and

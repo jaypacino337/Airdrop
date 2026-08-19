@@ -7,8 +7,9 @@ curl -s https://<worker>/health | jq
 curl -s https://<worker>/api/stats | jq
 ```
 
-`/health` reports whether a cycle is currently running and when the next one is
-due. If `nextRunAt` is in the past by more than a cycle, the worker is wedged —
+`/health` reports readiness, whether a cycle is currently running, and when the
+next one is due. `"status": "standby"` means the worker deployed fine but is
+still missing configuration — `missing` names each variable. If `nextRunAt` is in the past by more than a cycle, the worker is wedged —
 restart the service.
 
 ## Reading a cycle

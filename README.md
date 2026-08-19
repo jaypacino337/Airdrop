@@ -67,6 +67,17 @@ npm run cycle:once --workspace worker
 
 Everything else has a working default. `.env.example` documents all of it.
 
+### Deploy first, configure after
+
+Only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `HELIUS_API_KEY` are needed
+for the worker to *deploy*. Without the wallet and the mints it boots into
+**standby**: the HTTP server comes up, `/health` returns 200 and lists exactly
+what is still missing, and no cycle runs. Add the rest and redeploy to start
+distributing.
+
+The website is the same: with no variables at all it builds and renders; give it
+`SUPABASE_URL` + `SUPABASE_ANON_KEY` and the live numbers appear.
+
 > **Start with `DRY_RUN=true`.** The engine will claim nothing, buy nothing and
 > send nothing, but it still snapshots holders, computes the full allocation and
 > writes it to Supabase — so you can check the numbers against the chain before a

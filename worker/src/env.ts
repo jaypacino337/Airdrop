@@ -37,11 +37,7 @@ const list = () =>
         .filter(Boolean),
     );
 
-const base58Mint = z
-  .string()
-  .min(32)
-  .max(44)
-  .regex(/^[1-9A-HJ-NP-Za-km-z]+$/, 'must be a base58 Solana address');
+export const BASE58_ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 const schema = z.object({
   NODE_ENV: z.string().default('development'),
@@ -56,11 +52,13 @@ const schema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
 
-  CREATOR_PRIVATE_KEY: z.string().min(1),
-
-  PROJECT_TOKEN_MINT: base58Mint,
+  // The three below are only needed to run a cycle, not to boot. The worker
+  // starts in standby without them so a fresh deploy comes up green and can be
+  // configured afterwards. See readiness.ts.
+  CREATOR_PRIVATE_KEY: z.string().default(''),
+  PROJECT_TOKEN_MINT: z.string().default(''),
   /** SYMBOL:MINT:WEIGHT_BPS, comma separated. Weights must total 10000. */
-  REWARD_TOKENS: z.string().min(1),
+  REWARD_TOKENS: z.string().default(''),
 
   CYCLE_INTERVAL_MS: int(300_000, 30_000),
   RUN_ON_BOOT: bool(true),
@@ -164,10 +162,14 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     throw new Error('Set HELIUS_API_KEY (or RPC_URL) — the worker needs a Solana RPC endpoint.');
   }
 
-  const rewardTokens = parseRewardTokens(env.REWARD_TOKENS);
-
-  if (rewardTokens.some((token) => token.mint === env.PROJECT_TOKEN_MINT)) {
-    throw new Error('A reward token cannot be the same mint as PROJECT_TOKEN_MINT.');
+  // Reward tokens are parsed leniently here; readiness.ts turns a parse failure
+  // into a "not configured yet" state rather than a crash at boot.
+  let rewardTokens: RewardTokenConfig[] = [];
+  if (env.REWARD_TOKENS.trim()) {
+    rewardTokens = parseRewardTokens(env.REWARD_TOKENS);
+    if (rewardTokens.some((token) => token.mint === env.PROJECT_TOKEN_MINT)) {
+      throw new Error('A reward token cannot be the same mint as PROJECT_TOKEN_MINT.');
+    }
   }
 
   cached = { ...env, rpcUrl, rpcUrlFallback: env.RPC_URL_FALLBACK, rewardTokens };
