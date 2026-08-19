@@ -121,15 +121,19 @@ does not need the worker to be publicly reachable.
 
 ## 6b. Vercel instead of Railway for the site (optional)
 
-The worker must stay on Railway — it is a long-running process. The website is
-a normal Next.js app and deploys to Vercel just as well:
+The worker must stay on Railway — it is a long-running process. The website is a
+normal Next.js app and deploys to Vercel just as well:
 
 1. Vercel → Add New → Project → import this repository.
-2. Leave the root directory as `/`. `vercel.json` already points the build at
-   the `web` workspace.
-3. Add the same variables from `web/.env.example` (`SUPABASE_URL`,
+2. **Root Directory → `web`.** This is the important one: it is a monorepo, and
+   Vercel needs to be pointed at the app. Leave "Include files outside the root
+   directory" enabled so the npm workspace at the repo root still installs.
+3. Leave the framework preset as Next.js and do not override the build or output
+   commands — `web/vercel.json` already declares the preset.
+4. Add the variables from `web/.env.example` (`SUPABASE_URL`,
    `SUPABASE_ANON_KEY`, and the `NEXT_PUBLIC_*` set).
-4. Deploy.
+5. If the branch selector does not offer it, set the Production Branch to
+   `claude/moderna-mrnax-airdrop-hq4w2e` (or merge that branch first).
 
 Pick one host for the site — Railway or Vercel, not both.
 
