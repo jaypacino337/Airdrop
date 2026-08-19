@@ -1,26 +1,26 @@
 'use client';
 
-import { siteConfig } from '@/lib/config';
-import { formatNumber, formatRaw, formatSol } from '@/lib/format';
+import { decimalsFor, rewardTokens } from '@/lib/config';
+import { formatRaw, formatSol } from '@/lib/format';
 import { useLiveStats } from '@/lib/use-live-stats';
 
-/** The three headline numbers under the hero, refreshed on a poll. */
+/** Headline numbers under the hero: one per reward token, plus fees recycled. */
 export function HeroStats() {
   const { data, loading } = useLiveStats();
-  const stats = data.stats;
+
+  const byMint = new Map(data.rewardTotals.map((total) => [total.symbol.toUpperCase(), total]));
 
   const cells = [
+    ...rewardTokens.map((token) => {
+      const total = byMint.get(token.symbol);
+      return {
+        label: `${token.symbol} distributed`,
+        value: formatRaw(total?.distributed_raw ?? '0', decimalsFor(token.mint, token.symbol), 2),
+      };
+    }),
     {
-      label: `${siteConfig.rewardTicker} distributed`,
-      value: formatRaw(stats.total_reward_distributed_raw, siteConfig.rewardDecimals, 4),
-    },
-    {
-      label: 'Fees recycled',
-      value: `${formatSol(stats.total_claimed_lamports)} SOL`,
-    },
-    {
-      label: 'Distributions completed',
-      value: formatNumber(stats.completed_cycles),
+      label: 'Creator fees recycled',
+      value: `${formatSol(data.stats.total_claimed_lamports)} SOL`,
     },
   ];
 

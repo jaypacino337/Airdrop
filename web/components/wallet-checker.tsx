@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ArrowRight, CheckCircle2, Loader2, Search, XCircle } from 'lucide-react';
-import { maxWalletSharePct, siteConfig, solscanTx } from '@/lib/config';
+import { decimalsFor, maxWalletSharePct, rewardList, siteConfig, solscanTx } from '@/lib/config';
 import { formatNumber, formatRaw, isSolanaAddress, shortAddress, timeAgo } from '@/lib/format';
 import type { WalletResponse } from '@/lib/types';
 
@@ -43,7 +43,8 @@ export function WalletChecker() {
     <div className="rounded-xl border border-border bg-card p-6 md:p-8">
       <h3 className="text-lg font-semibold">Check a wallet</h3>
       <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-        See where an address stood in the most recent snapshot and everything it has received so far.
+        See where an address stood in the most recent snapshot, and what it has been paid in{' '}
+        {rewardList}.
       </p>
 
       <form onSubmit={submit} className="mt-6 flex flex-col gap-2 sm:flex-row">
@@ -124,19 +125,22 @@ function WalletResult({ data }: { data: WalletResponse }) {
       </div>
 
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-border">
-        <div className="bg-background p-4">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Total received</p>
-          <p className="tnum mt-1 text-xl font-semibold text-brand">
-            {formatRaw(data.totalReceivedRaw, siteConfig.rewardDecimals, 6)}{' '}
-            <span className="text-sm font-normal text-muted-foreground">
-              {siteConfig.rewardTicker}
-            </span>
-          </p>
-        </div>
-        <div className="bg-background p-4">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Payouts</p>
-          <p className="tnum mt-1 text-xl font-semibold">{formatNumber(data.payoutCount)}</p>
-        </div>
+        {(data.totals.length > 0
+          ? data.totals
+          : [{ mint: '', symbol: '—', totalReceivedRaw: '0', payoutCount: 0 }]
+        ).map((total) => (
+          <div key={total.mint || total.symbol} className="bg-background p-4">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              {total.symbol} received
+            </p>
+            <p className="tnum mt-1 text-xl font-semibold text-brand">
+              {formatRaw(total.totalReceivedRaw, decimalsFor(total.mint, total.symbol), 4)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {formatNumber(total.payoutCount)} payouts
+            </p>
+          </div>
+        ))}
       </div>
 
       {data.history.length > 0 ? (
@@ -150,8 +154,8 @@ function WalletResult({ data }: { data: WalletResponse }) {
                 {timeAgo(payout.confirmed_at ?? payout.created_at)}
               </span>
               <span className="tnum font-medium">
-                {formatRaw(payout.amount_raw, siteConfig.rewardDecimals, 6)}{' '}
-                {siteConfig.rewardTicker}
+                {formatRaw(payout.amount_raw, decimalsFor(payout.mint, payout.symbol), 4)}{' '}
+                <span className="text-xs font-normal text-muted-foreground">{payout.symbol}</span>
               </span>
               {payout.signature ? (
                 <a

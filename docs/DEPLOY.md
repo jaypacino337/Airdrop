@@ -28,9 +28,9 @@ call per 1,000 holders.
 
 ## 3. The wallet
 
-`CREATOR_PRIVATE_KEY` must be the wallet that **created the MRNA coin on
-pump.fun** — only that wallet can claim its creator fees. The same wallet buys
-MRNAx and sends the airdrop.
+`CREATOR_PRIVATE_KEY` must be the wallet that **created the coin on pump.fun** —
+only that wallet can claim its creator fees. The same wallet buys the reward
+tokens and sends the airdrop.
 
 - Phantom → Settings → Export private key gives you the base58 form.
 - `solana-keygen` gives you the JSON byte array. Both are accepted.
@@ -40,14 +40,22 @@ MRNAx and sends the airdrop.
 
 ## 4. Mints
 
-- `PROJECT_TOKEN_MINT` — the MRNA mint address from pump.fun.
-- `REWARD_TOKEN_MINT` — the MRNAx mint. Look it up on Jupiter or the issuer's
-  site and paste the exact address; the worker reads its decimals and token
-  program at boot and refuses to start if the mint does not exist.
+- `PROJECT_TOKEN_MINT` — the Trump Strategy mint address from pump.fun.
+- `REWARD_TOKENS` — what gets bought and dropped, as `SYMBOL:MINT:WEIGHT_BPS`
+  entries. For a 50/50 WLFI + TRUMP split:
 
-MRNAx is a Token-2022 asset, so the worker resolves the owning token program for
-both mints and builds transfers accordingly (including transfer-hook aware
-transfers when the mint declares one).
+  ```
+  REWARD_TOKENS=WLFI:<wlfi_mint>:5000,TRUMP:<trump_mint>:5000
+  ```
+
+  Weights are basis points and must total 10000. Look each mint up on Jupiter or
+  Solscan and paste the exact address — the worker reads every mint's decimals
+  and token program at boot and refuses to start if one does not exist, if the
+  weights do not add up, or if a mint is listed twice.
+
+Reward mints may be SPL Token or Token-2022; the worker resolves the owning
+program per mint and builds transfers accordingly (including transfer-hook aware
+transfers when a mint declares one).
 
 ## 5. Railway — worker service
 
@@ -62,7 +70,7 @@ transfers when the mint declares one).
    SUPABASE_SERVICE_ROLE_KEY=...
    CREATOR_PRIVATE_KEY=...
    PROJECT_TOKEN_MINT=...
-   REWARD_TOKEN_MINT=...
+   REWARD_TOKENS=WLFI:<wlfi_mint>:5000,TRUMP:<trump_mint>:5000
    DRY_RUN=true
    ADMIN_TOKEN=<openssl rand -hex 32>
    ```
@@ -83,7 +91,7 @@ transfers when the mint declares one).
    SUPABASE_URL=...
    SUPABASE_ANON_KEY=...
    NEXT_PUBLIC_PROJECT_TOKEN_MINT=...
-   NEXT_PUBLIC_REWARD_TOKEN_MINT=...
+   NEXT_PUBLIC_REWARD_TOKENS=WLFI:<wlfi_mint>:6:5000,TRUMP:<trump_mint>:6:5000
    NEXT_PUBLIC_MIN_ELIGIBLE_TOKENS=500000
    NEXT_PUBLIC_MAX_WALLET_SHARE_BPS=400
    NEXT_PUBLIC_CYCLE_INTERVAL_MS=300000

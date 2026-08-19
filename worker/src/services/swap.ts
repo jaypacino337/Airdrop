@@ -19,7 +19,7 @@ export interface SwapResult {
 }
 
 /**
- * Spend the claimed SOL on MRNAx.
+ * Spend one reward token's slice of the claimed SOL on that token.
  *
  * The amount bought is measured from the on-chain token balance before and
  * after the swap, not from the router's quote, so partial fills and fees are

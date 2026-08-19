@@ -11,11 +11,8 @@ export interface CyclePatch {
   finished_at?: string;
   claim_signature?: string | null;
   claimed_lamports?: string;
-  swap_signature?: string | null;
   swap_provider?: string | null;
   sol_spent_lamports?: string;
-  reward_bought_raw?: string;
-  reward_distributed_raw?: string;
   holder_count?: number;
   eligible_count?: number;
   capped_count?: number;
@@ -29,10 +26,24 @@ export interface PayoutRow {
   id: number;
   cycle_id: string;
   owner: string;
+  mint: string;
   amount_raw: string;
   status: PayoutStatus;
   signature: string | null;
   attempts: number;
+}
+
+export interface CycleRewardPatch {
+  symbol: string;
+  weight_bps: number;
+  decimals: number;
+  sol_spent_lamports?: string;
+  swap_signature?: string | null;
+  swap_provider?: string | null;
+  bought_raw?: string;
+  distributed_raw?: string;
+  payout_count?: number;
+  note?: string | null;
 }
 
 const INSERT_CHUNK = 500;
@@ -55,9 +66,17 @@ export class Repo {
     if (error) throw new Error(`updateCycle failed: ${error.message}`);
   }
 
+  /** Upsert the per-reward-token row for a cycle. */
+  async upsertCycleReward(cycleId: string, mint: string, patch: CycleRewardPatch): Promise<void> {
+    const { error } = await this.db
+      .from('cycle_rewards')
+      .upsert({ cycle_id: cycleId, mint, ...patch }, { onConflict: 'cycle_id,mint' });
+    if (error) throw new Error(`upsertCycleReward failed: ${error.message}`);
+  }
+
   async saveSnapshot(
     cycleId: string,
-    rows: Array<{ owner: string; balanceRaw: bigint; balanceUi: number; shareBps: number; capped: boolean; allocationRaw: bigint }>,
+    rows: Array<{ owner: string; balanceRaw: bigint; balanceUi: number; shareBps: number; capped: boolean }>,
   ): Promise<void> {
     for (const batch of chunk(rows, INSERT_CHUNK)) {
       const { error } = await this.db.from('snapshot_holders').upsert(
@@ -68,7 +87,6 @@ export class Repo {
           balance_ui: r.balanceUi,
           share_bps: r.shareBps,
           capped: r.capped,
-          allocation_raw: r.allocationRaw.toString(),
         })),
         { onConflict: 'cycle_id,owner' },
       );
@@ -81,26 +99,34 @@ export class Repo {
    * (cycle_id, owner) unique key is the idempotency key: a worker that dies
    * mid-distribution resumes from these rows instead of paying twice.
    */
-  async stagePayouts(cycleId: string, allocations: readonly Allocation[]): Promise<void> {
+  async stagePayouts(
+    cycleId: string,
+    mint: string,
+    symbol: string,
+    allocations: readonly Allocation[],
+  ): Promise<void> {
     for (const batch of chunk(allocations, INSERT_CHUNK)) {
       const { error } = await this.db.from('payouts').upsert(
         batch.map((a) => ({
           cycle_id: cycleId,
           owner: a.owner,
+          mint,
+          symbol,
           amount_raw: a.amountRaw.toString(),
           status: 'pending' as const,
         })),
-        { onConflict: 'cycle_id,owner', ignoreDuplicates: true },
+        { onConflict: 'cycle_id,owner,mint', ignoreDuplicates: true },
       );
       if (error) throw new Error(`stagePayouts failed: ${error.message}`);
     }
   }
 
-  async pendingPayouts(cycleId: string): Promise<PayoutRow[]> {
+  async pendingPayouts(cycleId: string, mint: string): Promise<PayoutRow[]> {
     const { data, error } = await this.db
       .from('payouts')
-      .select('id, cycle_id, owner, amount_raw, status, signature, attempts')
+      .select('id, cycle_id, owner, mint, amount_raw, status, signature, attempts')
       .eq('cycle_id', cycleId)
+      .eq('mint', mint)
       .in('status', ['pending', 'failed'])
       .order('amount_raw', { ascending: false });
     if (error) throw new Error(`pendingPayouts failed: ${error.message}`);
@@ -182,7 +208,7 @@ export class Repo {
   async walletHistory(owner: string, limit: number): Promise<unknown[]> {
     const { data, error } = await this.db
       .from('payouts')
-      .select('cycle_id, amount_raw, status, signature, created_at, confirmed_at')
+      .select('cycle_id, mint, symbol, amount_raw, status, signature, created_at, confirmed_at')
       .eq('owner', owner)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -190,17 +216,26 @@ export class Repo {
     return data ?? [];
   }
 
-  async walletTotals(owner: string): Promise<{ total_received_raw: string; payout_count: number }> {
+  async walletTotals(
+    owner: string,
+  ): Promise<Array<{ mint: string; symbol: string; total_received_raw: string; payout_count: number }>> {
     const { data, error } = await this.db
       .from('leaderboard')
-      .select('total_received_raw, payout_count')
-      .eq('owner', owner)
-      .maybeSingle();
+      .select('mint, symbol, total_received_raw, payout_count')
+      .eq('owner', owner);
     if (error) throw new Error(`walletTotals failed: ${error.message}`);
-    return {
-      total_received_raw: (data?.total_received_raw as string | undefined) ?? '0',
-      payout_count: (data?.payout_count as number | undefined) ?? 0,
-    };
+    return (data ?? []) as Array<{
+      mint: string;
+      symbol: string;
+      total_received_raw: string;
+      payout_count: number;
+    }>;
+  }
+
+  async rewardTotals(): Promise<unknown[]> {
+    const { data, error } = await this.db.from('reward_totals').select('*');
+    if (error) throw new Error(`rewardTotals failed: ${error.message}`);
+    return data ?? [];
   }
 
   async recentEvents(limit: number): Promise<unknown[]> {

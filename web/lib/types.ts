@@ -1,3 +1,18 @@
+export interface CycleReward {
+  cycle_id: string;
+  mint: string;
+  symbol: string;
+  weight_bps: number;
+  sol_spent_lamports: string;
+  swap_signature: string | null;
+  swap_provider: string | null;
+  bought_raw: string;
+  distributed_raw: string;
+  payout_count: number;
+  decimals: number;
+  note: string | null;
+}
+
 export interface Cycle {
   id: string;
   status: 'running' | 'completed' | 'failed' | 'skipped';
@@ -6,11 +21,8 @@ export interface Cycle {
   finished_at: string | null;
   claim_signature: string | null;
   claimed_lamports: string;
-  swap_signature: string | null;
   swap_provider: string | null;
   sol_spent_lamports: string;
-  reward_bought_raw: string;
-  reward_distributed_raw: string;
   holder_count: number;
   eligible_count: number;
   capped_count: number;
@@ -18,6 +30,7 @@ export interface Cycle {
   tx_count: number;
   note: string | null;
   error: string | null;
+  cycle_rewards?: CycleReward[];
 }
 
 export interface SnapshotHolder {
@@ -26,12 +39,13 @@ export interface SnapshotHolder {
   balance_ui: number;
   share_bps: number;
   capped: boolean;
-  allocation_raw: string;
 }
 
 export interface Payout {
   cycle_id: string;
   owner: string;
+  mint: string;
+  symbol: string;
   amount_raw: string;
   status: string;
   signature: string | null;
@@ -39,12 +53,19 @@ export interface Payout {
   confirmed_at: string | null;
 }
 
+export interface RewardTotal {
+  mint: string;
+  symbol: string;
+  distributed_raw: string;
+  payout_count: number;
+  recipient_count: number;
+  last_payout_at: string | null;
+}
+
 export interface AirdropStats {
   completed_cycles: number;
   total_claimed_lamports: string;
   total_sol_spent_lamports: string;
-  total_reward_bought_raw: string;
-  total_reward_distributed_raw: string;
   total_payouts: number;
   unique_recipients: number;
   last_completed_at: string | null;
@@ -54,6 +75,7 @@ export interface AirdropStats {
 export interface StatsResponse {
   configured: boolean;
   stats: AirdropStats;
+  rewardTotals: RewardTotal[];
   lastCycle: Cycle | null;
   nextDropAt: string | null;
   warning?: string;
@@ -68,15 +90,20 @@ export interface HoldersResponse {
   warning?: string;
 }
 
+export interface WalletTotal {
+  mint: string;
+  symbol: string;
+  totalReceivedRaw: string;
+  payoutCount: number;
+}
+
 export interface WalletResponse {
   address: string;
   eligible: boolean;
   balanceUi: number;
   shareBps: number;
   capped: boolean;
-  lastAllocationRaw: string;
-  totalReceivedRaw: string;
-  payoutCount: number;
+  totals: WalletTotal[];
   history: Payout[];
   warning?: string;
 }

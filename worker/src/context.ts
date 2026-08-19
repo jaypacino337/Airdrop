@@ -1,5 +1,5 @@
 import { Connection, Keypair } from '@solana/web3.js';
-import type { Env } from './env.js';
+import type { Env, RewardTokenConfig } from './env.js';
 import { getConnection } from './chain/rpc.js';
 import { resolveMint, type MintInfo } from './chain/mint.js';
 import { keypairFromSecret } from './chain/wallet.js';
@@ -14,12 +14,17 @@ const ALWAYS_EXCLUDED = [
   '11111111111111111111111111111111',
 ];
 
+/** One configured reward token, resolved against the chain. */
+export interface RewardToken extends RewardTokenConfig {
+  mintInfo: MintInfo;
+}
+
 export interface Context {
   env: Env;
   connection: Connection;
   wallet: Keypair;
   projectMint: MintInfo;
-  rewardMint: MintInfo;
+  rewards: RewardToken[];
   repo: Repo;
   excluded: Set<string>;
   minEligibleRaw: bigint;
@@ -33,10 +38,15 @@ export async function getContext(env: Env): Promise<Context> {
   const connection = getConnection(env);
   const wallet = keypairFromSecret(env.CREATOR_PRIVATE_KEY);
 
-  const [projectMint, rewardMint] = await Promise.all([
+  const [projectMint, ...rewardMints] = await Promise.all([
     resolveMint(connection, env.PROJECT_TOKEN_MINT),
-    resolveMint(connection, env.REWARD_TOKEN_MINT),
+    ...env.rewardTokens.map((token) => resolveMint(connection, token.mint)),
   ]);
+
+  const rewards: RewardToken[] = env.rewardTokens.map((token, index) => ({
+    ...token,
+    mintInfo: rewardMints[index]!,
+  }));
 
   const excluded = new Set<string>([
     ...ALWAYS_EXCLUDED,
@@ -50,9 +60,13 @@ export async function getContext(env: Env): Promise<Context> {
     wallet: wallet.publicKey.toBase58(),
     projectMint: env.PROJECT_TOKEN_MINT,
     projectDecimals: projectMint.decimals,
-    rewardMint: env.REWARD_TOKEN_MINT,
-    rewardDecimals: rewardMint.decimals,
-    rewardTokenProgram: rewardMint.programId.toBase58(),
+    rewards: rewards.map((reward) => ({
+      symbol: reward.symbol,
+      mint: reward.mint,
+      weightBps: reward.weightBps,
+      decimals: reward.mintInfo.decimals,
+      tokenProgram: reward.mintInfo.programId.toBase58(),
+    })),
     minEligibleTokens: env.MIN_ELIGIBLE_TOKENS,
     maxWalletShareBps: env.MAX_WALLET_SHARE_BPS,
     dryRun: env.DRY_RUN,
@@ -64,7 +78,7 @@ export async function getContext(env: Env): Promise<Context> {
     connection,
     wallet,
     projectMint,
-    rewardMint,
+    rewards,
     repo: new Repo(getSupabase(env)),
     excluded,
     minEligibleRaw,

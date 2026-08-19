@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
   try {
     const cycles = await supabaseSelect<Cycle>(
-      `cycles?select=*&order=started_at.desc&limit=${limit}`,
+      `cycles?select=*,cycle_rewards(*)&order=started_at.desc&limit=${limit}`,
     );
     return NextResponse.json({ cycles });
   } catch (error) {

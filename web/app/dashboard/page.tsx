@@ -6,7 +6,7 @@ import { DashboardView } from '@/components/dashboard-view';
 export const metadata: Metadata = {
   title: 'Live dashboard',
   description:
-    'Every distribution, every snapshot and every payout the Moderna airdrop engine has made, updated live.',
+    'Every distribution, every snapshot and every payout the Trump Strategy airdrop engine has made, updated live.',
 };
 
 export default function DashboardPage() {

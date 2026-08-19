@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, Activity } from 'lucide-react';
 import { NextDrop } from '@/components/next-drop';
 import { HeroStats } from '@/components/hero-stats';
-import { cycleMinutes, maxWalletSharePct, siteConfig } from '@/lib/config';
+import { cycleMinutes, maxWalletSharePct, rewardList, rewardSplit, siteConfig } from '@/lib/config';
 import { formatNumber } from '@/lib/format';
 
 export function Hero() {
@@ -25,13 +25,13 @@ export function Hero() {
         <h1 className="fade-up text-balance text-5xl font-semibold leading-[1.06] tracking-tight md:text-7xl">
           Hold {siteConfig.ticker}.
           <br />
-          <span className="text-brand">Get paid in {siteConfig.rewardTicker}.</span>
+          <span className="text-brand">Get paid in {rewardList}.</span>
         </h1>
 
         <p className="fade-up mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
           Every {cycleMinutes} minutes the engine claims {siteConfig.name}&apos;s pump.fun creator
-          fees, buys {siteConfig.rewardTicker} on the open market, snapshots every {siteConfig.ticker}{' '}
-          holder and sends it out pro-rata. No claiming. No staking. No forms.
+          fees, splits them {rewardSplit} into {rewardList}, snapshots every {siteConfig.ticker}{' '}
+          holder and sends both out pro-rata. No claiming. No staking. No forms.
         </p>
 
         <div className="fade-up mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">

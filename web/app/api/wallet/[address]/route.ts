@@ -9,13 +9,15 @@ export const revalidate = 0;
 
 interface LeaderboardRow {
   owner: string;
+  mint: string;
+  symbol: string;
   total_received_raw: string;
   payout_count: number;
 }
 
 /**
- * Wallet lookup: where a wallet stood in the last snapshot, and everything it
- * has ever been paid.
+ * Wallet lookup: where a wallet stood in the last snapshot, and what it has
+ * been paid in each reward token.
  */
 export async function GET(_request: Request, context: { params: Promise<{ address: string }> }) {
   const { address: raw } = await context.params;
@@ -31,9 +33,7 @@ export async function GET(_request: Request, context: { params: Promise<{ addres
     balanceUi: 0,
     shareBps: 0,
     capped: false,
-    lastAllocationRaw: '0',
-    totalReceivedRaw: '0',
-    payoutCount: 0,
+    totals: [],
     history: [],
   };
 
@@ -50,17 +50,16 @@ export async function GET(_request: Request, context: { params: Promise<{ addres
     const [snapshot, totals, history] = await Promise.all([
       cycleId
         ? supabaseSelect<SnapshotHolder>(
-            `snapshot_holders?select=owner,balance_raw,balance_ui,share_bps,capped,allocation_raw&cycle_id=eq.${cycleId}&owner=eq.${address}&limit=1`,
+            `snapshot_holders?select=owner,balance_raw,balance_ui,share_bps,capped&cycle_id=eq.${cycleId}&owner=eq.${address}&limit=1`,
           )
         : Promise.resolve([]),
-      supabaseSelect<LeaderboardRow>(`leaderboard?select=*&owner=eq.${address}&limit=1`),
+      supabaseSelect<LeaderboardRow>(`leaderboard?select=*&owner=eq.${address}`),
       supabaseSelect<Payout>(
-        `payouts?select=cycle_id,owner,amount_raw,status,signature,created_at,confirmed_at&owner=eq.${address}&order=created_at.desc&limit=25`,
+        `payouts?select=cycle_id,owner,mint,symbol,amount_raw,status,signature,created_at,confirmed_at&owner=eq.${address}&order=created_at.desc&limit=30`,
       ),
     ]);
 
     const row = snapshot[0];
-    const total = totals[0];
 
     return NextResponse.json<WalletResponse>({
       address,
@@ -68,9 +67,12 @@ export async function GET(_request: Request, context: { params: Promise<{ addres
       balanceUi: row?.balance_ui ?? 0,
       shareBps: row?.share_bps ?? 0,
       capped: row?.capped ?? false,
-      lastAllocationRaw: row?.allocation_raw ?? '0',
-      totalReceivedRaw: total?.total_received_raw ?? '0',
-      payoutCount: total?.payout_count ?? 0,
+      totals: totals.map((total) => ({
+        mint: total.mint,
+        symbol: total.symbol,
+        totalReceivedRaw: total.total_received_raw,
+        payoutCount: total.payout_count,
+      })),
       history,
     });
   } catch (error) {

@@ -1,10 +1,11 @@
 /**
  * Allocation rules
  * ----------------
- *  1. A wallet must hold at least `minBalanceRaw` of MRNA to be eligible.
+ *  1. A wallet must hold at least `minBalanceRaw` of the project token.
  *  2. Excluded wallets (LP pools, CEX, treasury, the creator itself) never
  *     take part in a snapshot.
- *  3. Eligible wallets split the cycle's MRNAx pot pro-rata by MRNA held.
+ *  3. Eligible wallets split the cycle's pot for one reward token pro-rata by
+ *     project tokens held. The function runs once per reward token.
  *  4. No single wallet may take more than `maxShareBps` of the pot (4% by
  *     default). Whatever a capped wallet cannot take is redistributed
  *     pro-rata over the wallets that are still under the cap — repeatedly,

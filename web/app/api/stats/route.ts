@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { siteConfig } from '@/lib/config';
 import { supabaseConfigured, supabaseSelect, supabaseSingle } from '@/lib/supabase';
-import type { AirdropStats, Cycle, StatsResponse } from '@/lib/types';
+import type { AirdropStats, Cycle, RewardTotal, StatsResponse } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -10,8 +10,6 @@ const EMPTY: AirdropStats = {
   completed_cycles: 0,
   total_claimed_lamports: '0',
   total_sol_spent_lamports: '0',
-  total_reward_bought_raw: '0',
-  total_reward_distributed_raw: '0',
   total_payouts: 0,
   unique_recipients: 0,
   last_completed_at: null,
@@ -36,6 +34,7 @@ export async function GET() {
     return NextResponse.json<StatsResponse>({
       configured: false,
       stats: EMPTY,
+      rewardTotals: [],
       lastCycle: null,
       nextDropAt: nextDropAt(null),
       warning: 'Supabase is not configured yet — showing an empty ledger.',
@@ -43,15 +42,17 @@ export async function GET() {
   }
 
   try {
-    const [stats, cycles] = await Promise.all([
+    const [stats, rewardTotals, cycles] = await Promise.all([
       supabaseSingle<AirdropStats>('airdrop_stats?select=*'),
-      supabaseSelect<Cycle>('cycles?select=*&order=started_at.desc&limit=1'),
+      supabaseSelect<RewardTotal>('reward_totals?select=*'),
+      supabaseSelect<Cycle>('cycles?select=*,cycle_rewards(*)&order=started_at.desc&limit=1'),
     ]);
 
     const lastCycle = cycles[0] ?? null;
     return NextResponse.json<StatsResponse>({
       configured: true,
       stats: stats ?? EMPTY,
+      rewardTotals,
       lastCycle,
       nextDropAt: nextDropAt(stats?.last_completed_at ?? lastCycle?.finished_at ?? null),
     });
@@ -60,6 +61,7 @@ export async function GET() {
     return NextResponse.json<StatsResponse>({
       configured: true,
       stats: EMPTY,
+      rewardTotals: [],
       lastCycle: null,
       nextDropAt: nextDropAt(null),
       warning: 'Live stats are temporarily unavailable.',

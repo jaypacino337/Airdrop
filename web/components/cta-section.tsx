@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { cycleMinutes, siteConfig, solscanToken } from '@/lib/config';
+import { cycleMinutes, rewardList, siteConfig, solscanToken } from '@/lib/config';
 
 export function CtaSection() {
   return (
@@ -17,7 +17,7 @@ export function CtaSection() {
         </h2>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
           The next snapshot happens in under {cycleMinutes} minutes, whether or not you are in it.
-          Hold {siteConfig.ticker}, and you are.
+          Hold {siteConfig.ticker} and you are — paid in {rewardList}, automatically.
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           {siteConfig.links.pumpfun || siteConfig.tokenMint ? (

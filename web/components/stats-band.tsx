@@ -1,6 +1,7 @@
 'use client';
 
-import { cycleMinutes, maxWalletSharePct, siteConfig } from '@/lib/config';
+import { cycleMinutes, maxWalletSharePct, rewardList, rewardSplit, siteConfig } from '@/lib/config';
+import { decimalsFor } from '@/lib/config';
 import { formatNumber, formatRaw, timeAgo } from '@/lib/format';
 import { useLiveStats } from '@/lib/use-live-stats';
 
@@ -10,14 +11,11 @@ export function StatsBand() {
 
   const cells = [
     { value: `${cycleMinutes}m`, label: 'Between distributions' },
+    { value: rewardSplit, label: `Split between ${rewardList}` },
     { value: `${maxWalletSharePct}%`, label: 'Maximum share per wallet' },
     {
       value: formatNumber(siteConfig.minEligibleTokens),
       label: `${siteConfig.ticker} to qualify`,
-    },
-    {
-      value: formatNumber(data.stats.unique_recipients),
-      label: 'Wallets paid so far',
     },
   ];
 
@@ -37,8 +35,10 @@ export function StatsBand() {
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Last completed distribution {timeAgo(data.stats.last_completed_at)} ·{' '}
-          {formatRaw(data.stats.total_reward_distributed_raw, siteConfig.rewardDecimals, 4)}{' '}
-          {siteConfig.rewardTicker} sent in total
+          {formatNumber(data.stats.unique_recipients)} wallets paid ·{' '}
+          {data.rewardTotals
+            .map((total) => `${formatRaw(total.distributed_raw, decimalsFor(total.mint, total.symbol), 2)} ${total.symbol}`)
+            .join(' + ') || 'no distributions yet'}
         </p>
       </div>
     </section>

@@ -15,12 +15,12 @@ another is in flight.
 | Step | Module | Notes |
 | --- | --- | --- |
 | 1. Claim creator fees | `services/claim.ts` | PumpPortal's local-transaction API by default: it returns an unsigned transaction that the worker signs itself, so the key never leaves the process. `CLAIM_PROVIDER=onchain` builds the instruction directly (experimental — verify against the current IDL). |
-| 2. Buy MRNAx | `services/swap.ts` | Jupiter first, PumpPortal as fallback. The amount bought is measured from the token balance before and after, never from the quote. |
-| 3. Read the pot | `chain/transfer.ts` | The distributor's entire MRNAx balance, so last cycle's dust is included. |
+| 2. Buy each reward token | `services/swap.ts` | The spendable SOL is split by the configured weights (50/50 for WLFI + TRUMP) and each slice is bought separately: Jupiter first, PumpPortal as fallback. The amount bought is measured from the token balance before and after, never from the quote. |
+| 3. Read each pot | `chain/transfer.ts` | The distributor's entire balance of that reward token, so last cycle's dust is included. |
 | 4. Snapshot | `chain/holders.ts` | Helius `getTokenAccounts`, paginated, summed per owner; `getProgramAccounts` fallback. Off-curve owners (pools, vaults, bonding curves) are dropped. |
-| 5. Allocate | `core/allocate.ts` | Pure function, no I/O — see below. |
-| 6. Persist | `db/repo.ts` | Snapshot rows and *pending* payout rows are written before anything is signed. |
-| 7. Distribute | `services/distributor.ts` | Batches of `TRANSFERS_PER_TX` recipients per transaction, each simulated, sent and confirmed before the next batch. |
+| 5. Allocate | `core/allocate.ts` | Pure function, no I/O — run once per reward token against the same snapshot. See below. |
+| 6. Persist | `db/repo.ts` | Snapshot rows, a `cycle_rewards` row per token, and *pending* payout rows — all written before anything is signed. |
+| 7. Distribute | `services/distributor.ts` | Per token: batches of `TRANSFERS_PER_TX` recipients per transaction, each simulated, sent and confirmed before the next batch. |
 
 Every leg updates the cycle row as it completes, so a crashed cycle leaves a
 readable trail of exactly how far it got.
@@ -55,7 +55,9 @@ distributing less than the pot.
 
 ## Idempotency
 
-The `(cycle_id, owner)` unique constraint on `payouts` is the idempotency key.
+The `(cycle_id, owner, mint)` unique constraint on `payouts` is the idempotency
+key — per wallet *and* per reward token, so a failure distributing one token can
+never cause a double-send of the other.
 
 1. Rows are inserted as `pending` before any signing.
 2. A batch is sent, the signature is written and the rows move to `sent`.
@@ -68,7 +70,7 @@ resends the rest.
 
 ## Token programs
 
-Both mints are resolved at boot (`chain/mint.ts`): decimals, owning token
+Every mint is resolved at boot (`chain/mint.ts`): decimals, owning token
 program, and whether the mint carries a Token-2022 transfer hook or transfer fee.
 Transfers are built against the resolved program, and hook-aware instructions are
 used when the mint declares a hook. Recipient token accounts are created with the

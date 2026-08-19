@@ -32,8 +32,12 @@ export async function createServer(deps: ServerDeps): Promise<FastifyInstance> {
   app.get('/api/config', async () => ({
     projectTokenMint: ctx.env.PROJECT_TOKEN_MINT,
     projectTokenDecimals: ctx.projectMint.decimals,
-    rewardTokenMint: ctx.env.REWARD_TOKEN_MINT,
-    rewardTokenDecimals: ctx.rewardMint.decimals,
+    rewardTokens: ctx.rewards.map((reward) => ({
+      symbol: reward.symbol,
+      mint: reward.mint,
+      weightBps: reward.weightBps,
+      decimals: reward.mintInfo.decimals,
+    })),
     distributor: ctx.wallet.publicKey.toBase58(),
     cycleIntervalMs: ctx.env.CYCLE_INTERVAL_MS,
     minEligibleTokens: ctx.env.MIN_ELIGIBLE_TOKENS,
@@ -43,8 +47,8 @@ export async function createServer(deps: ServerDeps): Promise<FastifyInstance> {
   }));
 
   app.get('/api/stats', async () => {
-    const stats = await ctx.repo.stats();
-    return { ...stats, nextRunAt: new Date(deps.nextRunAt()).toISOString() };
+    const [stats, rewardTotals] = await Promise.all([ctx.repo.stats(), ctx.repo.rewardTotals()]);
+    return { ...stats, rewardTotals, nextRunAt: new Date(deps.nextRunAt()).toISOString() };
   });
 
   app.get<{ Querystring: { limit?: string } }>('/api/cycles', async (request) => {
@@ -70,13 +74,24 @@ export async function createServer(deps: ServerDeps): Promise<FastifyInstance> {
     }
     const [totals, history] = await Promise.all([
       ctx.repo.walletTotals(address),
-      ctx.repo.walletHistory(address, 25),
+      ctx.repo.walletHistory(address, 50),
     ]);
+
+    const decimalsByMint = new Map(ctx.rewards.map((r) => [r.mint, r.mintInfo.decimals]));
+
     return {
       address,
-      totalReceivedRaw: totals.total_received_raw,
-      totalReceivedUi: formatUi(BigInt(totals.total_received_raw || '0'), ctx.rewardMint.decimals, 6),
-      payoutCount: totals.payout_count,
+      totals: totals.map((total) => ({
+        mint: total.mint,
+        symbol: total.symbol,
+        totalReceivedRaw: total.total_received_raw,
+        totalReceivedUi: formatUi(
+          BigInt(total.total_received_raw || '0'),
+          decimalsByMint.get(total.mint) ?? 0,
+          6,
+        ),
+        payoutCount: total.payout_count,
+      })),
       history,
     };
   });

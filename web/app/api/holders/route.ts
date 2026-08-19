@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     if (!cycle) return NextResponse.json(EMPTY);
 
     const holders = await supabaseSelect<SnapshotHolder>(
-      `snapshot_holders?select=owner,balance_raw,balance_ui,share_bps,capped,allocation_raw&cycle_id=eq.${cycle.id}&order=balance_raw.desc&limit=${limit}`,
+      `snapshot_holders?select=owner,balance_raw,balance_ui,share_bps,capped&cycle_id=eq.${cycle.id}&order=balance_raw.desc&limit=${limit}`,
     );
 
     return NextResponse.json<HoldersResponse>({

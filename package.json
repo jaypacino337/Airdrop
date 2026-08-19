@@ -1,8 +1,8 @@
 {
-  "name": "moderna-airdrop",
+  "name": "trump-strategy-airdrop",
   "version": "1.0.0",
   "private": true,
-  "description": "Moderna (MRNA) — automated pump.fun creator-fee claim, MRNAx buyback and pro-rata airdrop engine.",
+  "description": "Trump Strategy — automated pump.fun creator-fee claim, 50/50 WLFI + TRUMP buyback and pro-rata airdrop engine.",
   "workspaces": [
     "worker",
     "web"

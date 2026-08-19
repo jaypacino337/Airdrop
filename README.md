@@ -1,33 +1,37 @@
-# Moderna — MRNAx airdrop engine
+# Trump Strategy — WLFI + TRUMP airdrop engine
 
-Moderna (**MRNA**) is a pump.fun coin that pays its holders in **MRNAx**, the
-tokenised Moderna stock on Solana.
+Trump Strategy is a pump.fun coin that pays its holders in **WLFI** and
+**TRUMP** — a 50/50 split, every five minutes.
 
-Every five minutes a worker:
+Every cycle a worker:
 
 1. **claims** the pump.fun creator fees the coin has earned,
-2. **buys** MRNAx on the open market with that SOL,
-3. **snapshots** every MRNA holder straight from chain state,
-4. **distributes** the MRNAx pro-rata — minimum **500,000 MRNA** to qualify, and
-   a hard **4% ceiling** on what any single wallet can take from one drop.
+2. **splits** that SOL 50/50 and **buys** WLFI and TRUMP on the open market,
+3. **snapshots** every holder straight from chain state,
+4. **distributes** both tokens pro-rata — minimum **500,000** to qualify, and a
+   hard **4% ceiling** on what any single wallet can take from one drop.
 
 Nothing to claim, nothing to stake, nothing to sign up for. Tokens simply arrive.
 
 ```
-pump.fun creator fees ──▶ claim ──▶ buy MRNAx ──▶ snapshot MRNA holders
-                                                        │
-                     ledger (Supabase) ◀── transfer ◀── allocate (500k min, 4% cap)
-                              │
-                              └──▶ website (live dashboard, wallet lookup)
+pump.fun creator fees ──▶ claim ──┬─▶ 50% buy WLFI  ─┐
+                                  └─▶ 50% buy TRUMP ─┤
+                                                     ▼
+                            snapshot holders ──▶ allocate (500k min, 4% cap)
+                                                     │
+                       website ◀── ledger (Supabase) ◀┴── transfer both tokens
 ```
+
+The 50/50 split is one setting (`REWARD_TOKENS`); any number of reward tokens at
+any weights works the same way, as long as the weights total 100%.
 
 ## What is in here
 
 | Path | What it is |
 | --- | --- |
-| `worker/` | The Railway worker: scheduler, claim, swap, snapshot, allocation, distribution, plus a small read-only API. TypeScript, no framework magic. |
+| `worker/` | The Railway worker: scheduler, claim, per-token swaps, snapshot, allocation, distribution, plus a small read-only API. TypeScript, no framework magic. |
 | `web/` | The website: landing page and live dashboard. Next.js 16 + Tailwind v4. |
-| `supabase/schema.sql` | The ledger: cycles, snapshots, payouts, events, and the views the site reads. |
+| `supabase/schema.sql` | The ledger: cycles, per-token cycle rewards, snapshots, payouts, events, and the views the site reads. |
 | `docs/` | [Deploy](docs/DEPLOY.md) · [Operations](docs/OPERATIONS.md) · [Architecture](docs/ARCHITECTURE.md) |
 | `Dockerfile.worker`, `Dockerfile.web` | One image per Railway service. |
 
@@ -58,8 +62,8 @@ npm run cycle:once --workspace worker
 | `HELIUS_API_KEY` | [dashboard.helius.dev](https://dashboard.helius.dev) → API keys. Used for RPC and holder indexing. |
 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project settings → API. Run `supabase/schema.sql` first. |
 | `CREATOR_PRIVATE_KEY` | The pump.fun **coin creator** wallet, base58 or JSON array. It claims, buys and pays. |
-| `PROJECT_TOKEN_MINT` | The MRNA mint — the coin whose holders get paid. |
-| `REWARD_TOKEN_MINT` | The MRNAx mint — the token that gets bought and airdropped. |
+| `PROJECT_TOKEN_MINT` | The Trump Strategy mint — the coin whose holders get paid. |
+| `REWARD_TOKENS` | What gets bought and dropped: `WLFI:<mint>:5000,TRUMP:<mint>:5000`. Weights are basis points and must total 10000. |
 
 Everything else has a working default. `.env.example` documents all of it.
 
@@ -70,11 +74,14 @@ Everything else has a working default. `.env.example` documents all of it.
 
 ## Distribution rules
 
-- **Minimum 500,000 MRNA** (`MIN_ELIGIBLE_TOKENS`) at the instant of the snapshot.
-  Below that a payout is worth less than the fee to send it.
-- **4% maximum per wallet** (`MAX_WALLET_SHARE_BPS=400`) of each drop. What a
-  capped wallet cannot take is redistributed across everyone still under the cap,
-  repeatedly, because redistribution can push the next wallet over the line.
+- **Minimum 500,000 tokens held** (`MIN_ELIGIBLE_TOKENS`) at the instant of the
+  snapshot. Below that a payout is worth less than the fee to send it.
+- **4% maximum per wallet** (`MAX_WALLET_SHARE_BPS=400`) of each drop, applied to
+  each reward token separately. What a capped wallet cannot take is redistributed
+  across everyone still under the cap, repeatedly, because redistribution can push
+  the next wallet over the line.
+- **One snapshot, both tokens.** A wallet's share is computed once and applied to
+  the WLFI pot and the TRUMP pot alike, so the two drops are always consistent.
 - **Pools and program accounts are excluded** — AMM pools, bonding curves, vaults
   and the distributor itself. Add anything else (team, CEX) to `EXCLUDED_WALLETS`.
 - **Nothing is stranded.** Rounding dust and payouts too small to send stay in the
@@ -86,8 +93,8 @@ Everything else has a working default. `.env.example` documents all of it.
 ## Safety properties
 
 - Every payout row is written to Supabase **before** anything is signed, keyed on
-  `(cycle_id, owner)`. A worker that dies mid-distribution resumes; it never pays
-  twice.
+  `(cycle_id, owner, mint)`. A worker that dies mid-distribution resumes; it never
+  pays twice, and a failure on one token cannot double-pay the other.
 - A row that already carries a signature is re-checked on chain before any resend.
 - Every transaction is simulated before it is sent.
 - The distributor keeps `SOL_RESERVE_LAMPORTS` back so it can always pay fees.
@@ -105,5 +112,7 @@ for the click-by-click version.
 
 ## Disclaimer
 
-This project is not affiliated with Moderna, Inc. It moves real funds on Solana
-mainnet: read the code, run it dry, and only then hand it a funded key.
+An independent community project. Not affiliated with, endorsed by or connected
+to Donald J. Trump, the Trump Organization, World Liberty Financial or any of
+their affiliates. It moves real funds on Solana mainnet: read the code, run it
+dry, and only then hand it a funded key.

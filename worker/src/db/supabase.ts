@@ -8,7 +8,7 @@ export function getSupabase(env: Env): SupabaseClient {
   if (!client) {
     client = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { 'x-application-name': 'moderna-airdrop-worker' } },
+      global: { headers: { 'x-application-name': 'trump-strategy-airdrop-worker' } },
     });
   }
   return client;

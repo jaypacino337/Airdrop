@@ -32,7 +32,7 @@ export async function distribute(
   repo: Repo,
   cycleId: string,
 ): Promise<DistributionResult> {
-  const pending = await repo.pendingPayouts(cycleId);
+  const pending = await repo.pendingPayouts(cycleId, rewardMint.mint.toBase58());
   if (pending.length === 0) {
     return { confirmed: 0, failed: 0, txCount: 0, distributedRaw: 0n };
   }
@@ -43,7 +43,11 @@ export async function distribute(
   }
 
   if (env.DRY_RUN) {
-    log.info('dry run: not sending payouts', { cycleId, payouts: outstanding.length });
+    log.info('dry run: not sending payouts', {
+      cycleId,
+      mint: rewardMint.mint.toBase58(),
+      payouts: outstanding.length,
+    });
     await repo.markPayouts(
       outstanding.map((p) => p.id),
       { status: 'skipped', error: 'dry run' },
@@ -73,7 +77,12 @@ export async function distribute(
       await repo.markPayouts(ids, { status: 'confirmed', signature, error: null });
       confirmed += batch.length;
       distributedRaw += batchTotal;
-      log.info('payout batch confirmed', { cycleId, signature, recipients: batch.length });
+      log.info('payout batch confirmed', {
+        cycleId,
+        mint: rewardMint.mint.toBase58(),
+        signature,
+        recipients: batch.length,
+      });
     } catch (err) {
       failed += batch.length;
       const message = errorMessage(err).slice(0, 500);

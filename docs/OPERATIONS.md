@@ -18,8 +18,8 @@ Every cycle writes one row in `cycles` with each leg recorded as it happens:
 | Column | Meaning |
 | --- | --- |
 | `claimed_lamports` | SOL the creator-fee claim actually produced (measured as a balance delta, not a quote) |
-| `sol_spent_lamports` / `reward_bought_raw` | what the buyback spent and received |
-| `reward_distributed_raw` | sum of the payouts that confirmed |
+| `sol_spent_lamports` | total SOL spent buying across all reward tokens |
+| `payout_count` / `tx_count` | payouts confirmed and transactions sent across all reward tokens |
 | `eligible_count` / `capped_count` | how many wallets qualified, and how many hit the 4% ceiling |
 | `note` | why a leg was skipped (nothing to claim, below the swap minimum, cap relaxed…) |
 | `error` | set only on `status = failed` |
@@ -30,7 +30,8 @@ cycle, with the signature and confirmation state.
 ## Common situations
 
 **Cycles complete but distribute nothing.** Normal when the coin has no trading
-volume: no fees to claim means no MRNAx to buy. Check `note` on the cycle row.
+volume: no fees to claim means nothing to buy. Check `note` on the cycle row and
+the per-token `cycle_rewards` rows.
 
 **`swap: only 0.00x SOL spendable, below MIN_SWAP_LAMPORTS`.** Fees are accruing
 more slowly than the reserve threshold. Either lower `MIN_SWAP_LAMPORTS` or leave

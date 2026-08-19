@@ -4,9 +4,17 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, ExternalLink, FlaskConical } from 'lucide-react';
 import { NextDrop } from '@/components/next-drop';
 import { WalletChecker } from '@/components/wallet-checker';
-import { maxWalletSharePct, siteConfig, solscanAccount, solscanTx } from '@/lib/config';
+import {
+  decimalsFor,
+  maxWalletSharePct,
+  rewardList,
+  rewardTokens,
+  siteConfig,
+  solscanAccount,
+  solscanTx,
+} from '@/lib/config';
 import { formatNumber, formatRaw, formatSol, shortAddress, timeAgo } from '@/lib/format';
-import type { Cycle, HoldersResponse, Payout } from '@/lib/types';
+import type { Cycle, CycleReward, HoldersResponse, Payout } from '@/lib/types';
 import { useLiveStats } from '@/lib/use-live-stats';
 
 const EMPTY_HOLDERS: HoldersResponse = {
@@ -66,7 +74,8 @@ export function DashboardView() {
       <header>
         <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">Live dashboard</h1>
         <p className="mt-2 text-muted-foreground">
-          Every claim, buy, snapshot and transfer the engine has made — refreshed automatically.
+          Every claim, buy, snapshot and transfer the engine has made across {rewardList} —
+          refreshed automatically.
         </p>
       </header>
 
@@ -89,12 +98,20 @@ export function DashboardView() {
           <NextDrop size="lg" />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-2">
-          <StatCard
-            label={`${siteConfig.rewardTicker} distributed`}
-            value={formatRaw(stats.total_reward_distributed_raw, siteConfig.rewardDecimals, 6)}
-            sub={`${formatNumber(stats.total_payouts)} payouts`}
-          />
+        <div className="grid grid-cols-2 gap-4">
+          {rewardTokens.map((token) => {
+            const total = live.rewardTotals.find(
+              (row) => row.mint === token.mint || row.symbol.toUpperCase() === token.symbol,
+            );
+            return (
+              <StatCard
+                key={token.symbol}
+                label={`${token.symbol} distributed`}
+                value={formatRaw(total?.distributed_raw ?? '0', decimalsFor(token.mint, token.symbol), 4)}
+                sub={`${formatNumber(total?.payout_count ?? 0)} payouts · ${token.weightBps / 100}% of each buy`}
+              />
+            );
+          })}
           <StatCard
             label="Creator fees claimed"
             value={`${formatSol(stats.total_claimed_lamports)} SOL`}
@@ -103,12 +120,7 @@ export function DashboardView() {
           <StatCard
             label="Distributions"
             value={formatNumber(stats.completed_cycles)}
-            sub={`last ${timeAgo(stats.last_completed_at)}`}
-          />
-          <StatCard
-            label="Wallets paid"
-            value={formatNumber(stats.unique_recipients)}
-            sub={`${formatNumber(holders.eligibleCount)} eligible in the last snapshot`}
+            sub={`${formatNumber(stats.unique_recipients)} wallets paid · last ${timeAgo(stats.last_completed_at)}`}
           />
         </div>
       </div>
@@ -124,7 +136,7 @@ export function DashboardView() {
                 <Th>When</Th>
                 <Th>Status</Th>
                 <Th className="text-right">Claimed</Th>
-                <Th className="text-right">{siteConfig.rewardTicker} out</Th>
+                <Th className="text-right">Distributed</Th>
                 <Th className="text-right">Wallets</Th>
                 <Th className="text-right">Proof</Th>
               </tr>
@@ -139,8 +151,8 @@ export function DashboardView() {
                     <StatusPill status={cycle.status} dryRun={cycle.dry_run} />
                   </Td>
                   <Td className="tnum text-right">{formatSol(cycle.claimed_lamports)} SOL</Td>
-                  <Td className="tnum text-right font-medium text-brand">
-                    {formatRaw(cycle.reward_distributed_raw, siteConfig.rewardDecimals, 6)}
+                  <Td className="text-right">
+                    <RewardBreakdown rewards={cycle.cycle_rewards ?? []} />
                   </Td>
                   <Td className="tnum text-right">{formatNumber(cycle.payout_count)}</Td>
                   <Td className="text-right">
@@ -148,10 +160,16 @@ export function DashboardView() {
                       {cycle.claim_signature ? (
                         <TxLink signature={cycle.claim_signature} label="claim" />
                       ) : null}
-                      {cycle.swap_signature ? (
-                        <TxLink signature={cycle.swap_signature} label="buy" />
-                      ) : null}
-                      {!cycle.claim_signature && !cycle.swap_signature ? (
+                      {(cycle.cycle_rewards ?? [])
+                        .filter((reward) => reward.swap_signature)
+                        .map((reward) => (
+                          <TxLink
+                            key={reward.mint}
+                            signature={reward.swap_signature!}
+                            label={reward.symbol.toLowerCase()}
+                          />
+                        ))}
+                      {!cycle.claim_signature && !(cycle.cycle_rewards ?? []).some((r) => r.swap_signature) ? (
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : null}
                     </div>
@@ -180,8 +198,7 @@ export function DashboardView() {
                   <Th className="w-10">#</Th>
                   <Th>Wallet</Th>
                   <Th className="text-right">{siteConfig.ticker} held</Th>
-                  <Th className="text-right">Share</Th>
-                  <Th className="text-right">Allocated</Th>
+                  <Th className="text-right">Share of each drop</Th>
                 </tr>
               </thead>
               <tbody>
@@ -202,7 +219,7 @@ export function DashboardView() {
                       </a>
                     </Td>
                     <Td className="tnum text-right">{formatNumber(holder.balance_ui)}</Td>
-                    <Td className="tnum text-right">
+                    <Td className="tnum text-right font-medium text-brand">
                       {(holder.share_bps / 100).toFixed(2)}%
                       {holder.capped ? (
                         <span className="ml-2 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
@@ -210,13 +227,10 @@ export function DashboardView() {
                         </span>
                       ) : null}
                     </Td>
-                    <Td className="tnum text-right font-medium text-brand">
-                      {formatRaw(holder.allocation_raw, siteConfig.rewardDecimals, 6)}
-                    </Td>
                   </tr>
                 ))}
                 {holders.holders.length === 0 ? (
-                  <EmptyRow colSpan={5} text="No snapshot has been taken yet." />
+                  <EmptyRow colSpan={4} text="No snapshot has been taken yet." />
                 ) : null}
               </tbody>
             </table>
@@ -227,7 +241,7 @@ export function DashboardView() {
           <ul className="flex flex-col divide-y divide-border">
             {payouts.map((payout) => (
               <li
-                key={`${payout.cycle_id}-${payout.owner}`}
+                key={`${payout.cycle_id}-${payout.owner}-${payout.mint}`}
                 className="flex items-center justify-between gap-3 py-2.5 text-sm"
               >
                 <a
@@ -239,10 +253,8 @@ export function DashboardView() {
                   {shortAddress(payout.owner, 5)}
                 </a>
                 <span className="tnum font-medium">
-                  {formatRaw(payout.amount_raw, siteConfig.rewardDecimals, 6)}{' '}
-                  <span className="text-xs font-normal text-muted-foreground">
-                    {siteConfig.rewardTicker}
-                  </span>
+                  {formatRaw(payout.amount_raw, decimalsFor(payout.mint, payout.symbol), 4)}{' '}
+                  <span className="text-xs font-normal text-muted-foreground">{payout.symbol}</span>
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {timeAgo(payout.confirmed_at ?? payout.created_at)}
@@ -257,6 +269,23 @@ export function DashboardView() {
       </div>
 
       <WalletChecker />
+    </div>
+  );
+}
+
+/** Per-token amounts for one cycle. Different decimals never get summed. */
+function RewardBreakdown({ rewards }: { rewards: CycleReward[] }) {
+  if (rewards.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
+  return (
+    <div className="flex flex-col items-end gap-0.5">
+      {rewards.map((reward) => (
+        <span key={reward.mint} className="tnum text-xs">
+          <span className="font-medium text-brand">
+            {formatRaw(reward.distributed_raw, reward.decimals || decimalsFor(reward.mint, reward.symbol), 4)}
+          </span>{' '}
+          <span className="text-muted-foreground">{reward.symbol}</span>
+        </span>
+      ))}
     </div>
   );
 }

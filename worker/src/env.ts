@@ -59,7 +59,8 @@ const schema = z.object({
   CREATOR_PRIVATE_KEY: z.string().min(1),
 
   PROJECT_TOKEN_MINT: base58Mint,
-  REWARD_TOKEN_MINT: base58Mint,
+  /** SYMBOL:MINT:WEIGHT_BPS, comma separated. Weights must total 10000. */
+  REWARD_TOKENS: z.string().min(1),
 
   CYCLE_INTERVAL_MS: int(300_000, 30_000),
   RUN_ON_BOOT: bool(true),
@@ -91,10 +92,54 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default('*'),
 });
 
+export interface RewardTokenConfig {
+  symbol: string;
+  mint: string;
+  /** Share of each cycle's SOL spent on this token, in basis points. */
+  weightBps: number;
+}
+
 export type Env = z.infer<typeof schema> & {
   rpcUrl: string;
   rpcUrlFallback: string | undefined;
+  rewardTokens: RewardTokenConfig[];
 };
+
+/**
+ * Parses `WLFI:mint:5000,TRUMP:mint:5000`.
+ * The weights are how the claimed SOL is split between the tokens each cycle.
+ */
+export function parseRewardTokens(raw: string): RewardTokenConfig[] {
+  const entries = raw
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (entries.length === 0) throw new Error('REWARD_TOKENS is empty — expected SYMBOL:MINT:WEIGHT_BPS entries');
+
+  const tokens = entries.map((entry) => {
+    const [symbol, mint, weight] = entry.split(':').map((piece) => piece.trim());
+    if (!symbol || !mint) throw new Error(`REWARD_TOKENS entry "${entry}" must look like SYMBOL:MINT:WEIGHT_BPS`);
+    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) {
+      throw new Error(`REWARD_TOKENS entry "${symbol}" does not carry a valid base58 mint`);
+    }
+    const weightBps = weight === undefined || weight === '' ? NaN : Number(weight);
+    if (!Number.isInteger(weightBps) || weightBps <= 0) {
+      throw new Error(`REWARD_TOKENS entry "${symbol}" needs a positive integer weight in basis points`);
+    }
+    return { symbol: symbol.toUpperCase(), mint, weightBps };
+  });
+
+  const total = tokens.reduce((sum, token) => sum + token.weightBps, 0);
+  if (total !== 10_000) {
+    throw new Error(`REWARD_TOKENS weights add up to ${total} bps; they must total 10000 (100%)`);
+  }
+
+  const mints = new Set(tokens.map((t) => t.mint));
+  if (mints.size !== tokens.length) throw new Error('REWARD_TOKENS lists the same mint twice');
+
+  return tokens;
+}
 
 let cached: Env | undefined;
 
@@ -119,11 +164,13 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     throw new Error('Set HELIUS_API_KEY (or RPC_URL) — the worker needs a Solana RPC endpoint.');
   }
 
-  if (env.PROJECT_TOKEN_MINT === env.REWARD_TOKEN_MINT) {
-    throw new Error('PROJECT_TOKEN_MINT and REWARD_TOKEN_MINT must be different mints.');
+  const rewardTokens = parseRewardTokens(env.REWARD_TOKENS);
+
+  if (rewardTokens.some((token) => token.mint === env.PROJECT_TOKEN_MINT)) {
+    throw new Error('A reward token cannot be the same mint as PROJECT_TOKEN_MINT.');
   }
 
-  cached = { ...env, rpcUrl, rpcUrlFallback: env.RPC_URL_FALLBACK };
+  cached = { ...env, rpcUrl, rpcUrlFallback: env.RPC_URL_FALLBACK, rewardTokens };
   return cached;
 }
 

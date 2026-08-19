@@ -15,7 +15,8 @@ export interface ClaimResult {
 
 /**
  * pump.fun pays coin creators a share of trading fees. This claims whatever
- * has accrued to the creator wallet so the next leg can spend it on MRNAx.
+ * has accrued to the creator wallet so the next leg can spend it on the reward
+ * tokens.
  */
 export async function claimCreatorFees(
   env: Env,

@@ -1,5 +1,5 @@
 import { Banknote, Camera, Send, ShoppingCart } from 'lucide-react';
-import { cycleMinutes, siteConfig } from '@/lib/config';
+import { cycleMinutes, rewardList, rewardSplit, rewardTokens, siteConfig } from '@/lib/config';
 
 const steps = [
   {
@@ -9,8 +9,10 @@ const steps = [
   },
   {
     icon: ShoppingCart,
-    title: `Buy ${siteConfig.rewardTicker}`,
-    body: `The claimed SOL is routed through Jupiter to buy ${siteConfig.rewardTicker} at market. A small SOL reserve is kept back purely to pay network fees.`,
+    title: `Buy ${rewardList}`,
+    body: `The SOL is split ${rewardSplit} and routed through Jupiter to buy ${rewardTokens
+      .map((token) => token.symbol)
+      .join(' and ')} at market. A small SOL reserve is kept back purely to pay network fees.`,
   },
   {
     icon: Camera,
@@ -20,7 +22,7 @@ const steps = [
   {
     icon: Send,
     title: 'Distribute pro-rata',
-    body: `Each qualifying wallet's share is calculated, the per-wallet cap is applied, and ${siteConfig.rewardTicker} is transferred directly. It simply appears in your wallet.`,
+    body: `Each qualifying wallet's share is calculated once, the per-wallet cap is applied, and both tokens are transferred directly. They simply appear in your wallet.`,
   },
 ];
 

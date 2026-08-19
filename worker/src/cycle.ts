@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
-import type { Context } from './context.js';
-import { allocate } from './core/allocate.js';
-import { snapshotHolders } from './chain/holders.js';
+import type { Context, RewardToken } from './context.js';
+import { allocate, type AllocationResult } from './core/allocate.js';
+import { snapshotHolders, type HolderRow } from './chain/holders.js';
 import { associatedTokenAddress, getTokenBalanceRaw } from './chain/transfer.js';
 import { claimCreatorFees } from './services/claim.js';
 import { buyRewardToken } from './services/swap.js';
@@ -9,17 +9,26 @@ import { distribute } from './services/distributor.js';
 import { errorMessage, log } from './logger.js';
 import { formatUi, lamportsToSol, toUi } from './util/amount.js';
 
+export interface RewardSummary {
+  symbol: string;
+  mint: string;
+  weightBps: number;
+  lamportsSpent: string;
+  boughtRaw: string;
+  distributedRaw: string;
+  payoutCount: number;
+  note?: string;
+}
+
 export interface CycleSummary {
   cycleId: string;
   status: 'completed' | 'failed' | 'skipped';
   claimedLamports: string;
-  boughtRaw: string;
-  distributedRaw: string;
   holderCount: number;
   eligibleCount: number;
   cappedCount: number;
-  payoutCount: number;
   txCount: number;
+  rewards: RewardSummary[];
   note?: string;
   error?: string;
   durationMs: number;
@@ -32,150 +41,201 @@ export function isCycleRunning(): boolean {
 }
 
 /**
- * One full pass: claim creator fees -> buy MRNAx -> snapshot MRNA holders ->
- * allocate under the 4% cap -> transfer.
+ * One full pass: claim creator fees -> split the SOL across the reward tokens
+ * -> buy each -> snapshot holders once -> allocate and transfer each token.
  *
- * Every leg is recorded in Supabase as it happens, so a crash leaves a
- * readable trail and the next run resumes rather than restarts.
+ * The snapshot and the eligibility maths are shared: every reward token is
+ * distributed against the same holder set, with the same 4% ceiling, so the
+ * only thing that differs per token is the size of the pot.
  */
 export async function runCycle(ctx: Context): Promise<CycleSummary> {
   if (running) throw new Error('a cycle is already running');
   running = true;
 
   const startedAt = Date.now();
-  const { env, connection, wallet, repo, projectMint, rewardMint } = ctx;
+  const { env, connection, wallet, repo, projectMint, rewards } = ctx;
   const cycleId = await repo.createCycle(env.DRY_RUN);
   const notes: string[] = [];
 
   try {
-    log.info('cycle started', { cycleId, dryRun: env.DRY_RUN });
+    log.info('cycle started', { cycleId, dryRun: env.DRY_RUN, rewards: rewards.map((r) => r.symbol) });
 
     // --- 1. Claim pump.fun creator fees --------------------------------------
-    const balanceBefore = BigInt(await connection.getBalance(wallet.publicKey, 'confirmed'));
-    let claim = { status: 'skipped' as const, claimedLamports: 0n, signature: undefined as string | undefined, reason: undefined as string | undefined };
-
-    if (balanceBefore >= 0n) {
-      const result = await claimCreatorFees(env, connection, wallet);
-      claim = {
-        status: result.status as 'skipped',
-        claimedLamports: result.claimedLamports,
-        signature: result.signature,
-        reason: result.reason,
-      };
-      if (result.reason) notes.push(`claim: ${result.reason}`);
-    }
+    const claim = await claimCreatorFees(env, connection, wallet);
+    if (claim.reason) notes.push(`claim: ${claim.reason}`);
 
     await repo.updateCycle(cycleId, {
       claim_signature: claim.signature ?? null,
       claimed_lamports: claim.claimedLamports.toString(),
     });
 
-    // --- 2. Buy MRNAx with everything above the SOL reserve -------------------
+    // --- 2. Split the spendable SOL and buy each reward token -----------------
     const solBalance = BigInt(await connection.getBalance(wallet.publicKey, 'confirmed'));
     const reserve = BigInt(env.SOL_RESERVE_LAMPORTS);
     const spendable = solBalance > reserve ? solBalance - reserve : 0n;
 
-    const swap = await buyRewardToken(env, connection, wallet, rewardMint, spendable);
-    if (swap.reason) notes.push(`swap: ${swap.reason}`);
+    const buys = new Map<string, { lamports: bigint; boughtRaw: bigint; signature?: string; provider?: string; note?: string }>();
+    let totalSpent = 0n;
+    let swapProvider: string | null = null;
+
+    for (const reward of rewards) {
+      const lamportsFor = (spendable * BigInt(reward.weightBps)) / 10_000n;
+      const swap = await buyRewardToken(env, connection, wallet, reward.mintInfo, lamportsFor);
+
+      buys.set(reward.mint, {
+        lamports: swap.lamportsSpent,
+        boughtRaw: swap.boughtRaw,
+        signature: swap.signature,
+        provider: swap.provider,
+        note: swap.reason,
+      });
+      totalSpent += swap.lamportsSpent;
+      if (swap.provider) swapProvider = swap.provider;
+      if (swap.reason) notes.push(`${reward.symbol}: ${swap.reason}`);
+
+      await repo.upsertCycleReward(cycleId, reward.mint, {
+        symbol: reward.symbol,
+        weight_bps: reward.weightBps,
+        decimals: reward.mintInfo.decimals,
+        sol_spent_lamports: swap.lamportsSpent.toString(),
+        swap_signature: swap.signature ?? null,
+        swap_provider: swap.provider ?? null,
+        bought_raw: swap.boughtRaw.toString(),
+        note: swap.reason ?? null,
+      });
+    }
 
     await repo.updateCycle(cycleId, {
-      swap_signature: swap.signature ?? null,
-      swap_provider: swap.provider ?? null,
-      sol_spent_lamports: swap.lamportsSpent.toString(),
-      reward_bought_raw: swap.boughtRaw.toString(),
+      sol_spent_lamports: totalSpent.toString(),
+      swap_provider: swapProvider,
     });
 
-    // --- 3. The pot: everything the distributor currently holds ---------------
-    // Using the balance (not just this cycle's purchase) means rounding dust
-    // and any skipped payout rolls forward instead of being stranded.
-    const rewardAta = associatedTokenAddress(rewardMint, wallet.publicKey);
-    const potRaw = await getTokenBalanceRaw(connection, rewardAta);
-
-    // --- 4. Snapshot MRNA holders --------------------------------------------
+    // --- 3. Snapshot holders once, for every token ---------------------------
     const holders = await snapshotHolders(env, connection, projectMint);
-    const filtered = env.EXCLUDE_OFF_CURVE_OWNERS
-      ? holders.filter((h) => isOnCurve(h.owner))
-      : holders;
+    const filtered = env.EXCLUDE_OFF_CURVE_OWNERS ? holders.filter((h) => isOnCurve(h.owner)) : holders;
 
     log.info('holder snapshot taken', {
       cycleId,
       holders: holders.length,
       afterProgramAccountFilter: filtered.length,
-      potRaw: potRaw.toString(),
     });
 
-    // --- 5. Allocate ----------------------------------------------------------
-    const result = allocate({
-      potRaw,
-      holders: filtered,
-      minBalanceRaw: ctx.minEligibleRaw,
-      maxShareBps: env.MAX_WALLET_SHARE_BPS,
-      minPayoutRaw: BigInt(env.MIN_PAYOUT_RAW),
-      excluded: ctx.excluded,
-    });
+    // --- 4 + 5. Allocate and distribute, token by token ----------------------
+    const summaries: RewardSummary[] = [];
+    let txCount = 0;
+    let snapshotSaved = false;
+    let eligibleCount = 0;
+    let cappedCount = 0;
+    let anyFailure = false;
+    let anyPayout = false;
 
-    if (result.capRelaxed) {
-      notes.push(
-        `per-wallet cap relaxed: ${result.eligibleCount} eligible wallets cannot absorb the pot at ${env.MAX_WALLET_SHARE_BPS / 100}% each`,
-      );
-      await repo.logEvent('warn', 'per-wallet cap relaxed', { eligible: result.eligibleCount }, cycleId);
+    for (const reward of rewards) {
+      const pot = await potFor(ctx, reward);
+      const result = allocate({
+        potRaw: pot,
+        holders: filtered,
+        minBalanceRaw: ctx.minEligibleRaw,
+        maxShareBps: env.MAX_WALLET_SHARE_BPS,
+        minPayoutRaw: BigInt(env.MIN_PAYOUT_RAW),
+        excluded: ctx.excluded,
+      });
+
+      eligibleCount = result.eligibleCount;
+      cappedCount = Math.max(cappedCount, result.cappedCount);
+
+      if (result.capRelaxed && !notes.some((n) => n.startsWith('cap relaxed'))) {
+        notes.push(
+          `cap relaxed: ${result.eligibleCount} eligible wallets cannot absorb a whole pot at ${env.MAX_WALLET_SHARE_BPS / 100}% each`,
+        );
+        await repo.logEvent('warn', 'per-wallet cap relaxed', { eligible: result.eligibleCount }, cycleId);
+      }
+
+      // The share of each wallet is identical for every reward token — only the
+      // pot differs — so the snapshot is written once.
+      if (!snapshotSaved) {
+        await saveSnapshot(ctx, cycleId, result);
+        snapshotSaved = true;
+      }
+
+      log.info('allocation computed', {
+        cycleId,
+        symbol: reward.symbol,
+        potRaw: pot.toString(),
+        eligible: result.eligibleCount,
+        capped: result.cappedCount,
+        payouts: result.allocations.length,
+        dust: result.dustRaw.toString(),
+      });
+
+      let distributed = { confirmed: 0, failed: 0, txCount: 0, distributedRaw: 0n };
+      if (result.allocations.length > 0) {
+        await repo.stagePayouts(cycleId, reward.mint, reward.symbol, result.allocations);
+        distributed = await distribute(env, connection, wallet, reward.mintInfo, repo, cycleId);
+        anyPayout = anyPayout || distributed.confirmed > 0;
+        anyFailure = anyFailure || distributed.failed > 0;
+      } else if (pot === 0n) {
+        notes.push(`${reward.symbol}: nothing in the pot to distribute`);
+      }
+
+      txCount += distributed.txCount;
+
+      const buy = buys.get(reward.mint);
+      summaries.push({
+        symbol: reward.symbol,
+        mint: reward.mint,
+        weightBps: reward.weightBps,
+        lamportsSpent: (buy?.lamports ?? 0n).toString(),
+        boughtRaw: (buy?.boughtRaw ?? 0n).toString(),
+        distributedRaw: distributed.distributedRaw.toString(),
+        payoutCount: distributed.confirmed,
+        note: buy?.note,
+      });
+
+      await repo.upsertCycleReward(cycleId, reward.mint, {
+        symbol: reward.symbol,
+        weight_bps: reward.weightBps,
+        decimals: reward.mintInfo.decimals,
+        sol_spent_lamports: (buy?.lamports ?? 0n).toString(),
+        swap_signature: buy?.signature ?? null,
+        swap_provider: buy?.provider ?? null,
+        bought_raw: (buy?.boughtRaw ?? 0n).toString(),
+        distributed_raw: distributed.distributedRaw.toString(),
+        payout_count: distributed.confirmed,
+        note: buy?.note ?? null,
+      });
+
+      log.info('reward distributed', {
+        cycleId,
+        symbol: reward.symbol,
+        confirmed: distributed.confirmed,
+        failed: distributed.failed,
+        amount: formatUi(distributed.distributedRaw, reward.mintInfo.decimals, 6),
+      });
     }
 
-    log.info('allocation computed', {
-      cycleId,
-      eligible: result.eligibleCount,
-      capped: result.cappedCount,
-      payouts: result.allocations.length,
-      allocated: result.allocatedRaw.toString(),
-      dust: result.dustRaw.toString(),
-    });
-
-    // Persist the snapshot for the site. `payouts` is the complete record of
-    // what was sent; this table is bounded so it cannot grow without limit.
-    const allocationByOwner = new Map(result.allocations.map((a) => [a.owner, a]));
-    const persisted = env.SNAPSHOT_PERSIST_LIMIT > 0
-      ? result.eligible.slice(0, env.SNAPSHOT_PERSIST_LIMIT)
-      : result.eligible;
-
-    await repo.saveSnapshot(
-      cycleId,
-      persisted.map((holder) => {
-        const allocation = allocationByOwner.get(holder.owner);
-        return {
-          owner: holder.owner,
-          balanceRaw: holder.balanceRaw,
-          balanceUi: toUi(holder.balanceRaw, projectMint.decimals),
-          shareBps: allocation?.shareBps ?? 0,
-          capped: allocation?.capped ?? false,
-          allocationRaw: allocation?.amountRaw ?? 0n,
-        };
-      }),
-    );
-
-    // --- 6. Distribute --------------------------------------------------------
-    let distributed = { confirmed: 0, failed: 0, txCount: 0, distributedRaw: 0n };
-    if (result.allocations.length > 0) {
-      await repo.stagePayouts(cycleId, result.allocations);
-      distributed = await distribute(env, connection, wallet, rewardMint, repo, cycleId);
-    } else {
-      notes.push('nothing to distribute this cycle');
+    if (!snapshotSaved) {
+      // No reward token had a pot; still record who would have qualified.
+      const result = allocate({
+        potRaw: 0n,
+        holders: filtered,
+        minBalanceRaw: ctx.minEligibleRaw,
+        maxShareBps: env.MAX_WALLET_SHARE_BPS,
+        excluded: ctx.excluded,
+      });
+      eligibleCount = result.eligibleCount;
+      await saveSnapshot(ctx, cycleId, result);
     }
 
-    const status = distributed.failed > 0 && distributed.confirmed === 0 && result.allocations.length > 0
-      ? 'failed'
-      : result.allocations.length === 0
-        ? 'skipped'
-        : 'completed';
+    const status = anyFailure && !anyPayout ? 'failed' : anyPayout ? 'completed' : 'skipped';
 
     await repo.updateCycle(cycleId, {
       status,
       finished_at: new Date().toISOString(),
-      reward_distributed_raw: distributed.distributedRaw.toString(),
       holder_count: filtered.length,
-      eligible_count: result.eligibleCount,
-      capped_count: result.cappedCount,
-      payout_count: distributed.confirmed,
-      tx_count: distributed.txCount,
+      eligible_count: eligibleCount,
+      capped_count: cappedCount,
+      payout_count: summaries.reduce((sum, s) => sum + s.payoutCount, 0),
+      tx_count: txCount,
       note: notes.join(' | ') || null,
       error: null,
     });
@@ -184,23 +244,21 @@ export async function runCycle(ctx: Context): Promise<CycleSummary> {
       cycleId,
       status,
       claimedLamports: claim.claimedLamports.toString(),
-      boughtRaw: swap.boughtRaw.toString(),
-      distributedRaw: distributed.distributedRaw.toString(),
       holderCount: filtered.length,
-      eligibleCount: result.eligibleCount,
-      cappedCount: result.cappedCount,
-      payoutCount: distributed.confirmed,
-      txCount: distributed.txCount,
+      eligibleCount,
+      cappedCount,
+      txCount,
+      rewards: summaries,
       note: notes.join(' | ') || undefined,
       durationMs: Date.now() - startedAt,
     };
 
-    await repo.logEvent('info', 'cycle finished', {
-      ...summary,
-      claimedSol: lamportsToSol(claim.claimedLamports),
-      distributedUi: formatUi(distributed.distributedRaw, rewardMint.decimals, 6),
-    }, cycleId);
-
+    await repo.logEvent(
+      'info',
+      'cycle finished',
+      { ...summary, claimedSol: lamportsToSol(claim.claimedLamports) },
+      cycleId,
+    );
     log.info('cycle finished', summary);
     return summary;
   } catch (err) {
@@ -220,19 +278,47 @@ export async function runCycle(ctx: Context): Promise<CycleSummary> {
       cycleId,
       status: 'failed',
       claimedLamports: '0',
-      boughtRaw: '0',
-      distributedRaw: '0',
       holderCount: 0,
       eligibleCount: 0,
       cappedCount: 0,
-      payoutCount: 0,
       txCount: 0,
+      rewards: [],
       error: message,
       durationMs: Date.now() - startedAt,
     };
   } finally {
     running = false;
   }
+}
+
+/**
+ * The pot is the distributor's entire balance of that token, not just this
+ * cycle's purchase, so rounding dust and skipped payouts roll forward.
+ */
+async function potFor(ctx: Context, reward: RewardToken): Promise<bigint> {
+  const ata = associatedTokenAddress(reward.mintInfo, ctx.wallet.publicKey);
+  return getTokenBalanceRaw(ctx.connection, ata);
+}
+
+async function saveSnapshot(ctx: Context, cycleId: string, result: AllocationResult): Promise<void> {
+  const { env, repo, projectMint } = ctx;
+  const allocationByOwner = new Map(result.allocations.map((a) => [a.owner, a]));
+  const persisted =
+    env.SNAPSHOT_PERSIST_LIMIT > 0 ? result.eligible.slice(0, env.SNAPSHOT_PERSIST_LIMIT) : result.eligible;
+
+  await repo.saveSnapshot(
+    cycleId,
+    persisted.map((holder: { owner: string; balanceRaw: bigint }) => {
+      const allocation = allocationByOwner.get(holder.owner);
+      return {
+        owner: holder.owner,
+        balanceRaw: holder.balanceRaw,
+        balanceUi: toUi(holder.balanceRaw, projectMint.decimals),
+        shareBps: allocation?.shareBps ?? 0,
+        capped: allocation?.capped ?? false,
+      };
+    }),
+  );
 }
 
 function isOnCurve(address: string): boolean {
@@ -242,3 +328,5 @@ function isOnCurve(address: string): boolean {
     return false;
   }
 }
+
+export type { HolderRow };

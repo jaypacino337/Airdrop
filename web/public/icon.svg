@@ -1,8 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Moderna">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Trump Strategy">
   <rect width="64" height="64" rx="14" fill="#111113"/>
-  <g transform="rotate(-45 32 32)">
-    <path d="M32 22h8a10 10 0 0 1 0 20h-8z" fill="#e05445"/>
-    <path d="M14 32a10 10 0 0 1 10-10h16a10 10 0 0 1 0 20H24a10 10 0 0 1-10-10z" fill="none" stroke="#e05445" stroke-width="4"/>
-    <path d="M32 22v20" stroke="#e05445" stroke-width="4" stroke-linecap="round"/>
-  </g>
+  <path d="M32 10 50 16.5V32c0 10.5-7.2 18.4-18 21.8C21.2 50.4 14 42.5 14 32V16.5L32 10z" fill="none" stroke="#e05445" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M32 21l3.1 6.7 7.2.8-5.4 5 1.4 7.2L32 37.2l-6.3 3.5 1.4-7.2-5.4-5 7.2-.8L32 21z" fill="#e05445"/>
 </svg>

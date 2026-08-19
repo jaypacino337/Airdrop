@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { BrandLock } from '@/components/brand';
-import { cycleMinutes, siteConfig, solscanToken } from '@/lib/config';
+import { cycleMinutes, rewardList, rewardTokens, siteConfig, solscanToken } from '@/lib/config';
 
 const columns = [
   {
@@ -22,8 +22,8 @@ export function Footer() {
           <div className="shrink-0 md:w-80">
             <BrandLock className="text-foreground" />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Creator fees in. {siteConfig.rewardTicker} out. Every {cycleMinutes} minutes, to every
-              wallet that qualifies — automatically.
+              Creator fees in. {rewardList} out. Every {cycleMinutes} minutes, to every wallet that
+              qualifies — automatically.
             </p>
           </div>
 
@@ -65,18 +65,20 @@ export function Footer() {
                     </a>
                   </li>
                 ) : null}
-                {siteConfig.rewardMint ? (
-                  <li>
-                    <a
-                      href={solscanToken(siteConfig.rewardMint)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {siteConfig.rewardTicker} contract
-                    </a>
-                  </li>
-                ) : null}
+                {rewardTokens
+                  .filter((token) => token.mint)
+                  .map((token) => (
+                    <li key={token.mint}>
+                      <a
+                        href={solscanToken(token.mint)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        {token.symbol} contract
+                      </a>
+                    </li>
+                  ))}
                 {siteConfig.links.twitter ? (
                   <li>
                     <a
@@ -107,10 +109,15 @@ export function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col gap-4 border-t border-border pt-8 text-xs leading-relaxed text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Moderna. Distributions are automated and verifiable on-chain.</p>
-          <p className="max-w-md sm:text-right">
-            Not affiliated with Moderna, Inc. Nothing here is financial advice. Crypto assets are
-            volatile and you can lose everything you put in.
+          <p>
+            © {new Date().getFullYear()} {siteConfig.name}. Distributions are automated and
+            verifiable on-chain.
+          </p>
+          <p className="max-w-lg sm:text-right">
+            An independent community project. Not affiliated with, endorsed by or connected to
+            Donald J. Trump, the Trump Organization, World Liberty Financial or any of their
+            affiliates. Nothing here is financial advice. Crypto assets are volatile and you can
+            lose everything you put in.
           </p>
         </div>
       </div>
