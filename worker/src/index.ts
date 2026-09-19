@@ -8,13 +8,12 @@ import { errorMessage, log, setLogLevel } from './logger.js';
 import { checkReadiness } from './readiness.js';
 
 /**
- * Railway entry point. One process runs both the cycle loop and the small read
- * API the website and health check use.
+ * Railway entry point. One process runs both the 5-minute cycle loop and the
+ * small read API the website and health check use.
  *
- * Supabase plus an RPC key are enough to boot. Without the wallet and the
- * mints the process still comes up and serves a healthy /health that says what
- * is missing — a fresh deploy goes green first and gets configured after,
- * rather than crash-looping on an empty variable.
+ * Supabase is enough to boot. Without the RPC, treasury key and token
+ * addresses the process still comes up and serves a healthy /health that says
+ * what is missing — a fresh deploy goes green first and gets configured after.
  */
 async function main(): Promise<void> {
   const env = loadEnv();
@@ -38,7 +37,7 @@ async function main(): Promise<void> {
       missing: readiness.missing,
     });
     await repo
-      .logEvent('warn', 'worker started in standby', { missing: readiness.missing })
+      .logEvent('warn', 'engine started in standby', { missing: readiness.missing })
       .catch(() => undefined);
     return;
   }
@@ -49,7 +48,6 @@ async function main(): Promise<void> {
     try {
       await runCycle(ctx);
     } catch (err) {
-      // runCycle already records failures; this only catches the truly unexpected.
       log.error('unhandled cycle error', { error: errorMessage(err) });
     }
     if (!stopping) timer = setTimeout(() => void tick(), Math.max(0, nextRunAt - Date.now()));
@@ -73,7 +71,6 @@ async function main(): Promise<void> {
     log.info('shutting down', { signal });
     if (timer) clearTimeout(timer);
     await app.close().catch(() => undefined);
-    // Give an in-flight cycle a moment to finish writing its Supabase rows.
     setTimeout(() => process.exit(0), 3_000).unref();
   };
 

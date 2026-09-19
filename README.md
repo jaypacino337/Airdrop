@@ -1,129 +1,97 @@
-# Trump Strategy — WLFI + TRUMP airdrop engine
+# Uranium Strategy — $USTR
 
-Trump Strategy is a pump.fun coin that pays its holders in **WLFI** and
-**TRUMP** — a 50/50 split, every five minutes.
+**Hold USTR. Get paid in uranium.**
 
-Every cycle a worker:
+Uranium Strategy is a Pons coin on Robinhood Chain that pays its holders in
+tokenized uranium exposure, every five minutes, automatically.
 
-1. **claims** the pump.fun creator fees the coin has earned,
-2. **splits** that SOL 50/50 and **buys** WLFI and TRUMP on the open market,
-3. **snapshots** every holder straight from chain state,
-4. **distributes** both tokens pro-rata — minimum **500,000** to qualify, and a
-   hard **4% ceiling** on what any single wallet can take from one drop.
+Every cycle the engine:
 
-Nothing to claim, nothing to stake, nothing to sign up for. Tokens simply arrive.
+1. reads the **treasury** — the public wallet where Pons creator fees land and
+   uranium tokens are held,
+2. optionally **buys** the reward tokens with spendable native balance,
+3. brings the **holder index** up to the chain head from Transfer logs,
+4. **airdrops** the treasury's uranium pro-rata — minimum **500,000 USTR** to
+   qualify, hard **4% ceiling** per wallet per drop, contracts (pools, routers,
+   lockers) excluded automatically.
+
+Nothing to claim, nothing to stake, nothing to sign up for. Tokens simply
+arrive, and every leg is written to a public ledger.
 
 ```
-pump.fun creator fees ──▶ claim ──┬─▶ 50% buy WLFI  ─┐
-                                  └─▶ 50% buy TRUMP ─┤
-                                                     ▼
-                            snapshot holders ──▶ allocate (500k min, 4% cap)
-                                                     │
-                       website ◀── ledger (Supabase) ◀┴── transfer both tokens
+Pons creator fees ──▶ treasury ──▶ [optional buyback: native → uranium tokens]
+                                          │
+        holder index (Transfer logs) ──▶ allocate (500k min, 4% cap)
+                                          │
+              website ◀── ledger (Supabase) ◀── ERC-20 transfers, one per wallet
 ```
-
-The 50/50 split is one setting (`REWARD_TOKENS`); any number of reward tokens at
-any weights works the same way, as long as the weights total 100%.
 
 ## What is in here
 
 | Path | What it is |
 | --- | --- |
-| `worker/` | The Railway worker: scheduler, claim, per-token swaps, snapshot, allocation, distribution, plus a small read-only API. TypeScript, no framework magic. |
-| `web/` | The website: landing page and live dashboard. Next.js 16 + Tailwind v4. |
-| `supabase/schema.sql` | The ledger: cycles, per-token cycle rewards, snapshots, payouts, events, and the views the site reads. |
+| `worker/` | The engine (Railway): holder indexer, allocation, sequential ERC-20 payouts with a crash-safe ledger, optional UniswapV2-style buyback, read-only API. TypeScript + ethers, no framework magic. |
+| `web/` | The site: Cold-War survey-terminal design, landing page + live feed. Next.js 16 + Tailwind v4. Deploys to Vercel (root dir `web`) or Railway. |
+| `supabase/schema.sql` | The ledger: cycles, per-token rewards, the holder index, snapshots, payouts, events, public views. |
 | `docs/` | [Deploy](docs/DEPLOY.md) · [Operations](docs/OPERATIONS.md) · [Architecture](docs/ARCHITECTURE.md) |
-| `Dockerfile.worker`, `Dockerfile.web` | One image per Railway service. |
 
 ## Quick start
 
 ```bash
 npm install
-cp .env.example .env            # worker settings — see below
+cp .env.example .env            # engine settings
 cp web/.env.example web/.env    # website settings
 
-npm test                        # allocation + amount maths
+npm test                        # allocation + config parsing (18 tests)
 npm run build                   # typecheck and build both packages
 
 npm run dev:worker              # engine (starts in DRY_RUN by default)
 npm run dev:web                 # site on http://localhost:3000
 ```
 
-Run the engine once and exit — the safest first thing to do:
+## The variables that matter
 
-```bash
-npm run cycle:once --workspace worker
-```
-
-## The five things you have to set
-
-| Variable | Where to get it |
+| Variable | What it is |
 | --- | --- |
-| `HELIUS_API_KEY` | [dashboard.helius.dev](https://dashboard.helius.dev) → API keys. Used for RPC and holder indexing. |
-| `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project settings → API. Run `supabase/schema.sql` first. |
-| `CREATOR_PRIVATE_KEY` | The pump.fun **coin creator** wallet, base58 or JSON array. It claims, buys and pays. |
-| `PROJECT_TOKEN_MINT` | The Trump Strategy mint — the coin whose holders get paid. |
-| `REWARD_TOKENS` | What gets bought and dropped: `WLFI:<mint>:5000,TRUMP:<mint>:5000`. Weights are basis points and must total 10000. |
+| `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | The ledger. Run `supabase/schema.sql` first. Enough on its own for a green deploy (the engine waits in standby). |
+| `EVM_RPC_URL` | A Robinhood Chain RPC endpoint. |
+| `TREASURY_PRIVATE_KEY` | The wallet that receives fees, holds uranium and sends the airdrop. |
+| `PROJECT_TOKEN_ADDRESS` (+ `PROJECT_TOKEN_DEPLOY_BLOCK`) | The USTR token from Pons; the deploy block is where the holder index starts. |
+| `REWARD_TOKENS` | What gets dropped: `SYMBOL:0xADDRESS:WEIGHT_BPS`, weights totalling 10000. |
 
-Everything else has a working default. `.env.example` documents all of it.
+> **About "uranium":** xU3O8 (tokenized physical U₃O₈) is transfer-restricted —
+> only whitelisted wallets can hold it. If arbitrary-holder transfers are not
+> possible on your chain, distribute an unrestricted uranium proxy (for example
+> the NNE stock token) and hold xU3O8 in the treasury as the visible reserve.
+> The engine works with any standard ERC-20; the choice is one env var.
 
-### Deploy first, configure after
-
-Only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `HELIUS_API_KEY` are needed
-for the worker to *deploy*. Without the wallet and the mints it boots into
-**standby**: the HTTP server comes up, `/health` returns 200 and lists exactly
-what is still missing, and no cycle runs. Add the rest and redeploy to start
-distributing.
-
-The website is the same: with no variables at all it builds and renders; give it
-`SUPABASE_URL` + `SUPABASE_ANON_KEY` and the live numbers appear.
-
-> **Start with `DRY_RUN=true`.** The engine will claim nothing, buy nothing and
-> send nothing, but it still snapshots holders, computes the full allocation and
-> writes it to Supabase — so you can check the numbers against the chain before a
-> single lamport moves. Flip it to `false` when the ledger looks right.
-
-## Distribution rules
-
-- **Minimum 500,000 tokens held** (`MIN_ELIGIBLE_TOKENS`) at the instant of the
-  snapshot. Below that a payout is worth less than the fee to send it.
-- **4% maximum per wallet** (`MAX_WALLET_SHARE_BPS=400`) of each drop, applied to
-  each reward token separately. What a capped wallet cannot take is redistributed
-  across everyone still under the cap, repeatedly, because redistribution can push
-  the next wallet over the line.
-- **One snapshot, both tokens.** A wallet's share is computed once and applied to
-  the WLFI pot and the TRUMP pot alike, so the two drops are always consistent.
-- **Pools and program accounts are excluded** — AMM pools, bonding curves, vaults
-  and the distributor itself. Add anything else (team, CEX) to `EXCLUDED_WALLETS`.
-- **Nothing is stranded.** Rounding dust and payouts too small to send stay in the
-  distributor and roll into the next cycle's pot.
-- If there are ever too few eligible wallets to absorb a whole drop under the cap
-  (fewer than 25 at 4%), the cap is relaxed for that cycle and the reason is
-  recorded on the cycle row.
+> **Start with `DRY_RUN=true`.** The engine indexes holders, computes the full
+> allocation and writes it to Supabase without signing anything. Check the
+> numbers, then flip it to `false`.
 
 ## Safety properties
 
-- Every payout row is written to Supabase **before** anything is signed, keyed on
-  `(cycle_id, owner, mint)`. A worker that dies mid-distribution resumes; it never
-  pays twice, and a failure on one token cannot double-pay the other.
-- A row that already carries a signature is re-checked on chain before any resend.
-- Every transaction is simulated before it is sent.
-- The distributor keeps `SOL_RESERVE_LAMPORTS` back so it can always pay fees.
-- Run **exactly one replica**. Two workers on the same wallet would double-pay.
+- Every payout row is written to Supabase **before** anything is signed, keyed
+  on `(cycle_id, owner, token)`. A crashed engine resumes; it never pays twice.
+- A row that already carries a tx hash is checked against the chain before any
+  resend.
+- Transfers go out sequentially, so nonces cannot collide; a gas/RPC failure
+  stops the run and the remainder resumes next cycle (`MAX_PAYOUTS_PER_CYCLE`).
+- The treasury keeps `NATIVE_RESERVE_WEI` back so it can always pay gas.
+- Run **exactly one replica**. Two engines on one wallet would collide.
 
 ## Deploying
 
-Two Railway services from this one repo — see [docs/DEPLOY.md](docs/DEPLOY.md)
-for the click-by-click version.
-
-| Service | Config file | Health check |
+| Service | Where | Config |
 | --- | --- | --- |
-| `worker` | `railway.worker.json` (`Dockerfile.worker`) | `/health` |
-| `web` | `railway.web.json` (`Dockerfile.web`) | `/` |
+| engine | Railway | config-as-code `railway.worker.json` (Dockerfile.worker), health `/health`, **1 replica** |
+| web | Vercel (root dir `web`) or Railway (`railway.web.json`) | vars from `web/.env.example` |
+
+Click-by-click in [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Disclaimer
 
-An independent community project. Not affiliated with, endorsed by or connected
-to Donald J. Trump, the Trump Organization, World Liberty Financial or any of
-their affiliates. It moves real funds on Solana mainnet: read the code, run it
+An independent community project — not affiliated with Robinhood, Pons,
+uranium.io or any uranium producer. "Uranium" refers to tokenized market
+exposure, not physical material. This code moves real funds: read it, run it
 dry, and only then hand it a funded key.

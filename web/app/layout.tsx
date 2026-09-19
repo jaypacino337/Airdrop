@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { rewardList, siteConfig } from '@/lib/config';
+import { siteConfig } from '@/lib/config';
 import './globals.css';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'], display: 'swap' });
@@ -8,20 +8,20 @@ const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin']
 
 export const metadata: Metadata = {
   title: {
-    default: `${siteConfig.name} — ${rewardList} every 5 minutes`,
+    default: `${siteConfig.name} — uranium airdrops every 5 minutes`,
     template: `%s · ${siteConfig.name}`,
   },
   description: siteConfig.description,
   applicationName: siteConfig.name,
-  keywords: ['Trump Strategy', 'WLFI', 'TRUMP', 'Solana', 'airdrop', 'pump.fun', 'creator fees'],
+  keywords: ['Uranium Strategy', 'USTR', 'uranium', 'xU3O8', 'Pons', 'Robinhood Chain', 'airdrop', 'creator fees'],
   openGraph: {
-    title: `${siteConfig.name} — ${rewardList} every 5 minutes`,
+    title: `${siteConfig.name} — uranium airdrops every 5 minutes`,
     description: siteConfig.description,
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${siteConfig.name} — ${rewardList} every 5 minutes`,
+    title: `${siteConfig.name} — uranium airdrops every 5 minutes`,
     description: siteConfig.description,
   },
   icons: { icon: '/icon.svg' },

@@ -1,29 +1,26 @@
-import { Connection, Keypair } from '@solana/web3.js';
+import type { JsonRpcProvider, Wallet } from 'ethers';
+import { assertChain, getProvider, getWallet, resolveToken, type TokenInfo } from './chain/evm.js';
 import type { Env, RewardTokenConfig } from './env.js';
-import { getConnection } from './chain/rpc.js';
-import { resolveMint, type MintInfo } from './chain/mint.js';
-import { keypairFromSecret } from './chain/wallet.js';
 import { Repo } from './db/repo.js';
 import { getSupabase } from './db/supabase.js';
 import { log } from './logger.js';
 import { toRaw } from './util/amount.js';
 
-/** Burn / incinerator addresses that must never be counted as holders. */
-const ALWAYS_EXCLUDED = [
-  '1nc1nerator11111111111111111111111111111111',
-  '11111111111111111111111111111111',
+const DEAD_ADDRESSES = [
+  '0x0000000000000000000000000000000000000000',
+  '0x000000000000000000000000000000000000dead',
 ];
 
 /** One configured reward token, resolved against the chain. */
 export interface RewardToken extends RewardTokenConfig {
-  mintInfo: MintInfo;
+  info: TokenInfo;
 }
 
 export interface Context {
   env: Env;
-  connection: Connection;
-  wallet: Keypair;
-  projectMint: MintInfo;
+  provider: JsonRpcProvider;
+  wallet: Wallet;
+  projectToken: TokenInfo;
   rewards: RewardToken[];
   repo: Repo;
   excluded: Set<string>;
@@ -35,49 +32,50 @@ let context: Context | undefined;
 export async function getContext(env: Env): Promise<Context> {
   if (context) return context;
 
-  const connection = getConnection(env);
-  const wallet = keypairFromSecret(env.CREATOR_PRIVATE_KEY);
+  const provider = getProvider(env);
+  await assertChain(env);
+  const wallet = getWallet(env);
 
-  const [projectMint, ...rewardMints] = await Promise.all([
-    resolveMint(connection, env.PROJECT_TOKEN_MINT),
-    ...env.rewardTokens.map((token) => resolveMint(connection, token.mint)),
+  const [projectToken, ...rewardInfos] = await Promise.all([
+    resolveToken(env, env.PROJECT_TOKEN_ADDRESS),
+    ...env.rewardTokens.map((token) => resolveToken(env, token.token)),
   ]);
 
   const rewards: RewardToken[] = env.rewardTokens.map((token, index) => ({
     ...token,
-    mintInfo: rewardMints[index]!,
+    info: rewardInfos[index]!,
   }));
 
   const excluded = new Set<string>([
-    ...ALWAYS_EXCLUDED,
+    ...DEAD_ADDRESSES,
     ...env.EXCLUDED_WALLETS,
-    wallet.publicKey.toBase58(),
+    wallet.address.toLowerCase(),
+    projectToken.address,
+    ...rewards.map((reward) => reward.info.address),
   ]);
 
-  const minEligibleRaw = toRaw(String(env.MIN_ELIGIBLE_TOKENS), projectMint.decimals);
+  const minEligibleRaw = toRaw(String(env.MIN_ELIGIBLE_TOKENS), projectToken.decimals);
 
   log.info('engine ready', {
-    wallet: wallet.publicKey.toBase58(),
-    projectMint: env.PROJECT_TOKEN_MINT,
-    projectDecimals: projectMint.decimals,
+    treasury: wallet.address,
+    projectToken: projectToken.address,
+    projectDecimals: projectToken.decimals,
     rewards: rewards.map((reward) => ({
       symbol: reward.symbol,
-      mint: reward.mint,
+      token: reward.info.address,
       weightBps: reward.weightBps,
-      decimals: reward.mintInfo.decimals,
-      tokenProgram: reward.mintInfo.programId.toBase58(),
+      decimals: reward.info.decimals,
     })),
     minEligibleTokens: env.MIN_ELIGIBLE_TOKENS,
     maxWalletShareBps: env.MAX_WALLET_SHARE_BPS,
     dryRun: env.DRY_RUN,
-    excludedWallets: excluded.size,
   });
 
   context = {
     env,
-    connection,
+    provider,
     wallet,
-    projectMint,
+    projectToken,
     rewards,
     repo: new Repo(getSupabase(env)),
     excluded,

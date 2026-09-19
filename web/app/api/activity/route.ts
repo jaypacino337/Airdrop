@@ -11,7 +11,7 @@ export async function GET() {
 
   try {
     const payouts = await supabaseSelect<Payout>(
-      'payouts?select=cycle_id,owner,mint,symbol,amount_raw,status,signature,created_at,confirmed_at&status=eq.confirmed&order=confirmed_at.desc&limit=30',
+      'payouts?select=cycle_id,owner,token,symbol,amount_raw,status,tx_hash,created_at,confirmed_at&status=eq.confirmed&order=confirmed_at.desc&limit=30',
     );
     return NextResponse.json({ payouts });
   } catch (error) {

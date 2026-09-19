@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { BrandLock } from '@/components/brand';
-import { cycleMinutes, rewardList, rewardTokens, siteConfig, solscanToken } from '@/lib/config';
+import { cycleMinutes, explorerAddress, explorerToken, rewardList, rewardTokens, siteConfig } from '@/lib/config';
 
 const columns = [
   {
@@ -16,11 +16,11 @@ const columns = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-surface pt-16 pb-10">
+    <footer className="border-t border-border bg-card pt-16 pb-10">
       <div className="mx-auto max-w-7xl px-6">
         <div className="flex flex-col gap-10 md:flex-row md:gap-0">
           <div className="shrink-0 md:w-80">
-            <BrandLock className="text-foreground" />
+            <BrandLock />
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
               Creator fees in. {rewardList} out. Every {cycleMinutes} minutes, to every wallet that
               qualifies — automatically.
@@ -30,9 +30,7 @@ export function Footer() {
           <div className="grid grid-cols-2 gap-8 md:flex md:flex-1 md:justify-end md:gap-16">
             {columns.map((column) => (
               <div key={column.heading}>
-                <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-navy">
-                  {column.heading}
-                </p>
+                <p className="readout mb-4 !text-foreground">{column.heading}</p>
                 <ul className="flex flex-col gap-2.5">
                   {column.links.map((link) => (
                     <li key={link.href}>
@@ -49,14 +47,12 @@ export function Footer() {
             ))}
 
             <div>
-              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-navy">
-                On-chain
-              </p>
+              <p className="readout mb-4 !text-foreground">On-chain</p>
               <ul className="flex flex-col gap-2.5">
-                {siteConfig.tokenMint ? (
+                {siteConfig.tokenAddress && explorerToken(siteConfig.tokenAddress) ? (
                   <li>
                     <a
-                      href={solscanToken(siteConfig.tokenMint)}
+                      href={explorerToken(siteConfig.tokenAddress)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -65,12 +61,24 @@ export function Footer() {
                     </a>
                   </li>
                 ) : null}
+                {siteConfig.treasuryAddress && explorerAddress(siteConfig.treasuryAddress) ? (
+                  <li>
+                    <a
+                      href={explorerAddress(siteConfig.treasuryAddress)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      Treasury wallet
+                    </a>
+                  </li>
+                ) : null}
                 {rewardTokens
-                  .filter((token) => token.mint)
+                  .filter((token) => token.token && explorerToken(token.token))
                   .map((token) => (
-                    <li key={token.mint}>
+                    <li key={token.token}>
                       <a
-                        href={solscanToken(token.mint)}
+                        href={explorerToken(token.token)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -79,6 +87,18 @@ export function Footer() {
                       </a>
                     </li>
                   ))}
+                {siteConfig.links.pons ? (
+                  <li>
+                    <a
+                      href={siteConfig.links.pons}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      Trade on Pons
+                    </a>
+                  </li>
+                ) : null}
                 {siteConfig.links.twitter ? (
                   <li>
                     <a
@@ -88,18 +108,6 @@ export function Footer() {
                       className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                     >
                       X / Twitter
-                    </a>
-                  </li>
-                ) : null}
-                {siteConfig.links.telegram ? (
-                  <li>
-                    <a
-                      href={siteConfig.links.telegram}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      Telegram
                     </a>
                   </li>
                 ) : null}
@@ -114,10 +122,10 @@ export function Footer() {
             verifiable on-chain.
           </p>
           <p className="max-w-lg sm:text-right">
-            An independent community project. Not affiliated with, endorsed by or connected to
-            Donald J. Trump, the Trump Organization, World Liberty Financial or any of their
-            affiliates. Nothing here is financial advice. Crypto assets are volatile and you can
-            lose everything you put in.
+            An independent community project — not affiliated with Robinhood, Pons, uranium.io or
+            any uranium producer. &quot;Uranium&quot; refers to tokenized market exposure, not
+            physical material. Nothing here is financial advice. Crypto assets are volatile and you
+            can lose everything you put in.
           </p>
         </div>
       </div>

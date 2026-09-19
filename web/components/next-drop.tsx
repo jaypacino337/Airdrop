@@ -48,7 +48,7 @@ export function NextDrop({ size = 'sm' }: { size?: 'sm' | 'lg' }) {
     return (
       <div className="flex flex-col items-center gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Next distribution
+          Next drop
         </p>
         <p className="tnum font-mono text-5xl font-bold tracking-tight text-brand md:text-6xl">{label}</p>
       </div>

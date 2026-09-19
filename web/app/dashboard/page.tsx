@@ -4,9 +4,9 @@ import { Navbar } from '@/components/navbar';
 import { DashboardView } from '@/components/dashboard-view';
 
 export const metadata: Metadata = {
-  title: 'Live dashboard',
+  title: 'Live feed',
   description:
-    'Every distribution, every snapshot and every payout the Trump Strategy airdrop engine has made, updated live.',
+    'Every snapshot and every uranium payout the Uranium Strategy engine has made, updated live.',
 };
 
 export default function DashboardPage() {

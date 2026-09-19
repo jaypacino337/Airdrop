@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ExternalLink, Menu, X } from 'lucide-react';
 import { BrandLock } from '@/components/brand';
-import { siteConfig, solscanToken } from '@/lib/config';
+import { explorerToken, siteConfig } from '@/lib/config';
 import { shortAddress } from '@/lib/format';
 
 const links = [
@@ -16,6 +16,7 @@ const links = [
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
+  const tokenLink = siteConfig.tokenAddress ? explorerToken(siteConfig.tokenAddress) : '';
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
@@ -24,12 +25,12 @@ export function Navbar() {
           <BrandLock />
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex" aria-label="Main">
+        <nav className="hidden items-center gap-7 md:flex" aria-label="Main">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-navy"
+              className="font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
             >
               {link.label}
             </Link>
@@ -37,23 +38,23 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          {siteConfig.tokenMint ? (
+          {tokenLink ? (
             <a
-              href={solscanToken(siteConfig.tokenMint)}
+              href={tokenLink}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-1.5 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
-              title="View the token contract on Solscan"
+              title="View the USTR contract on the explorer"
             >
-              {shortAddress(siteConfig.tokenMint)}
+              {shortAddress(siteConfig.tokenAddress)}
               <ExternalLink className="h-3 w-3" />
             </a>
           ) : null}
           <Link
             href="/dashboard"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            className="rounded-md bg-primary px-4 py-2 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-primary-foreground transition-opacity hover:opacity-90"
           >
-            Live dashboard
+            Live feed
           </Link>
         </div>
 
@@ -75,7 +76,7 @@ export function Navbar() {
               key={link.href}
               href={link.href}
               onClick={() => setOpen(false)}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-navy"
+              className="font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
             >
               {link.label}
             </Link>
@@ -83,9 +84,9 @@ export function Navbar() {
           <Link
             href="/dashboard"
             onClick={() => setOpen(false)}
-            className="mt-1 rounded-md bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground"
+            className="mt-1 rounded-md bg-primary px-4 py-2.5 text-center font-mono text-xs font-semibold uppercase tracking-[0.12em] text-primary-foreground"
           >
-            Live dashboard
+            Live feed
           </Link>
         </div>
       ) : null}

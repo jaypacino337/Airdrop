@@ -18,8 +18,8 @@ Every cycle writes one row in `cycles` with each leg recorded as it happens:
 
 | Column | Meaning |
 | --- | --- |
-| `claimed_lamports` | SOL the creator-fee claim actually produced (measured as a balance delta, not a quote) |
-| `sol_spent_lamports` | total SOL spent buying across all reward tokens |
+| `claimed_lamports` | native the creator-fee claim actually produced (measured as a balance delta, not a quote) |
+| `sol_spent_lamports` | total native spent buying across all reward tokens |
 | `payout_count` / `tx_count` | payouts confirmed and transactions sent across all reward tokens |
 | `eligible_count` / `capped_count` | how many wallets qualified, and how many hit the 4% ceiling |
 | `note` | why a leg was skipped (nothing to claim, below the swap minimum, cap relaxed…) |
@@ -34,9 +34,9 @@ cycle, with the signature and confirmation state.
 volume: no fees to claim means nothing to buy. Check `note` on the cycle row and
 the per-token `cycle_rewards` rows.
 
-**`swap: only 0.00x SOL spendable, below MIN_SWAP_LAMPORTS`.** Fees are accruing
-more slowly than the reserve threshold. Either lower `MIN_SWAP_LAMPORTS` or leave
-it — unspent SOL carries into the next cycle.
+**`swap: only 0.00x native spendable, below MIN_SWAP_WEI`.** Fees are accruing
+more slowly than the reserve threshold. Either lower `MIN_SWAP_WEI` or leave
+it — unspent native carries into the next cycle.
 
 **A payout batch failed.** The rows stay `failed` and are retried on the next
 cycle by `pendingPayouts`, after each signature is re-checked on chain so a
@@ -46,10 +46,10 @@ transaction that actually landed is never sent twice.
 add up to a whole drop. The cycle distributes pro-rata instead and records the
 reason. It resolves itself as the holder base grows.
 
-**Transactions time out.** Raise `PRIORITY_FEE_MICROLAMPORTS`, or lower
-`TRANSFERS_PER_TX` if simulation complains about transaction size.
+**Transactions time out.** Raise `TX_TIMEOUT_MS`, or lower
+`MAX_PAYOUTS_PER_CYCLE` if simulation complains about transaction size.
 
-**Helius rate limits.** The snapshot falls back to `getProgramAccounts`
+**the RPC rate limits.** The snapshot falls back to `getProgramAccounts`
 automatically; it is slower but works on any RPC.
 
 ## Changing the rules
@@ -62,7 +62,7 @@ will keep describing the old rules.
 ## Pausing
 
 - `DRY_RUN=true` — keeps snapshotting and computing, moves no funds.
-- `CLAIM_PROVIDER=disabled` — stop claiming, keep distributing what is held.
+- 
 - `SWAP_PROVIDER=disabled` — stop buying, keep distributing what is held.
 - Scale the service to zero replicas to stop entirely.
 
@@ -97,10 +97,10 @@ delete from public.events
 
 ## Security
 
-- The service-role key and the creator private key live only in the worker's
+- The service-role key and the treasury private key live only in the worker's
   Railway variables. The website only ever receives the anon key, server side.
 - `ADMIN_TOKEN` guards the only non-read endpoint. Rotate it if it leaks.
 - Nothing in the codebase logs a private key; the wallet module deliberately
   never stringifies its secret.
 - If the creator wallet is ever compromised, move the coin's creator authority
-  and replace `CREATOR_PRIVATE_KEY` — the ledger stays intact.
+  and replace `TREASURY_PRIVATE_KEY` — the ledger stays intact.

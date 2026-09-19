@@ -7,8 +7,7 @@ const EMPTY: StatsResponse = {
   configured: false,
   stats: {
     completed_cycles: 0,
-    total_claimed_lamports: '0',
-    total_sol_spent_lamports: '0',
+    total_native_spent_wei: '0',
     total_payouts: 0,
     unique_recipients: 0,
     last_completed_at: null,

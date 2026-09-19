@@ -1,29 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Trump Strategy">
-  <defs>
-    <clipPath id="c">
-      <path d="M78 108C40 96 16 64 10 8C30 54 56 82 94 94Z"/>
-      <path d="M122 108C160 96 184 64 190 8C170 54 144 82 106 94Z"/>
-      <path d="M58 64C62 104 70 142 82 170C86 178 114 178 118 170C130 142 138 104 142 64Z"/>
-    </clipPath>
-    <pattern id="s" width="26" height="22" patternUnits="userSpaceOnUse">
-      <path d="M13 4.5l2.1 4.5 4.9.6-3.6 3.4 1 4.9L13 15.5 8.6 17.9l1-4.9L6 9.6l4.9-.6z" fill="#ffffff"/>
-    </pattern>
-  </defs>
-  <g fill="none" stroke="#16306b" stroke-opacity="0.6" stroke-width="8" stroke-linejoin="round">
-    <path d="M78 108C40 96 16 64 10 8C30 54 56 82 94 94Z"/>
-    <path d="M122 108C160 96 184 64 190 8C170 54 144 82 106 94Z"/>
-    <path d="M58 64C62 104 70 142 82 170C86 178 114 178 118 170C130 142 138 104 142 64Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Uranium Strategy">
+  <rect width="64" height="64" rx="12" fill="#0c0d09"/>
+  <g fill="#f2c400">
+    <circle cx="32" cy="32" r="6"/>
+    <path d="M45.50 8.62A27.0 27.0 0 0 0 18.50 8.62L26.25 22.04A11.5 11.5 0 0 1 37.75 22.04Z"/>
+    <path d="M5.00 32.00A27.0 27.0 0 0 0 18.50 55.38L26.25 41.96A11.5 11.5 0 0 1 20.50 32.00Z"/>
+    <path d="M45.50 55.38A27.0 27.0 0 0 0 59.00 32.00L43.50 32.00A11.5 11.5 0 0 1 37.75 41.96Z"/>
   </g>
-  <g clip-path="url(#c)">
-    <rect width="200" height="200" fill="#ffffff"/>
-    <rect y="0" width="200" height="15.4" fill="#d3202a"/>
-    <rect y="30.8" width="200" height="15.4" fill="#d3202a"/>
-    <rect y="61.6" width="200" height="15.4" fill="#d3202a"/>
-    <rect y="92.4" width="200" height="15.4" fill="#d3202a"/>
-    <rect y="123.2" width="200" height="15.4" fill="#d3202a"/>
-    <rect y="154" width="200" height="15.4" fill="#d3202a"/>
-    <rect y="184.8" width="200" height="15.4" fill="#d3202a"/>
-    <rect width="98" height="106" fill="#16306b"/>
-    <rect width="98" height="106" fill="url(#s)"/>
-  </g>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#f2c400" stroke-width="2.5"/>
 </svg>

@@ -7,7 +7,7 @@ const rules = [
   {
     icon: Coins,
     title: `${formatNumber(siteConfig.minEligibleTokens)} ${siteConfig.ticker} minimum`,
-    body: `A wallet needs at least ${formatNumber(siteConfig.minEligibleTokens)} ${siteConfig.ticker} at the moment of the snapshot. Below that it is skipped — the transfer fee would eat the reward.`,
+    body: `A wallet needs at least ${formatNumber(siteConfig.minEligibleTokens)} ${siteConfig.ticker} at the moment of the snapshot. Below that it is skipped — the gas would eat the reward.`,
   },
   {
     icon: Gauge,
@@ -16,13 +16,13 @@ const rules = [
   },
   {
     icon: Ban,
-    title: 'Pools and vaults excluded',
-    body: 'Liquidity pools, bonding curves, program vaults and the distributor wallet are removed from the snapshot, so rewards go to real holders instead of back into the AMM.',
+    title: 'Contracts excluded',
+    body: 'Liquidity pools, routers, lockers and the treasury itself are removed from every snapshot, so rewards go to real holders instead of back into the pool.',
   },
   {
     icon: Recycle,
     title: 'Nothing is stranded',
-    body: `Rounding dust and anything too small to send stays in the distributor and rolls straight into the next cycle's pot.`,
+    body: 'Rounding dust and anything too small to send stays in the treasury and rolls straight into the next cycle. If a transfer fails, it resumes — it is never paid twice.',
   },
 ];
 
@@ -32,11 +32,8 @@ export function Eligibility() {
       <div className="mx-auto max-w-7xl px-6">
         <div className="grid items-start gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
           <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand">
-              Eligibility
-            </p>
-            <div className="flag-rule mb-5" />
-            <h2 className="text-balance text-4xl font-semibold tracking-tight text-navy md:text-5xl">
+            <p className="readout mb-3 !text-brand">Eligibility</p>
+            <h2 className="text-balance font-mono text-3xl font-bold uppercase tracking-tight md:text-5xl">
               The rules, in full.
             </h2>
             <p className="mt-4 max-w-xl text-lg leading-relaxed text-muted-foreground">
@@ -44,12 +41,12 @@ export function Eligibility() {
               there is no manual list and no discretion.
             </p>
 
-            <ul className="card-raise mt-10 flex flex-col gap-px overflow-hidden rounded-xl border border-border bg-border">
+            <ul className="hairline-grid mt-10 flex flex-col overflow-hidden rounded-md border border-border">
               {rules.map((rule) => {
                 const Icon = rule.icon;
                 return (
-                  <li key={rule.title} className="flex gap-4 bg-background p-6">
-                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-primary">
+                  <li key={rule.title} className="flex gap-4 bg-card p-6">
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-brand">
                       <Icon className="h-4 w-4" />
                     </span>
                     <div>

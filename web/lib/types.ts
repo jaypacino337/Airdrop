@@ -1,15 +1,15 @@
 export interface CycleReward {
   cycle_id: string;
-  mint: string;
+  token: string;
   symbol: string;
   weight_bps: number;
-  sol_spent_lamports: string;
-  swap_signature: string | null;
-  swap_provider: string | null;
+  decimals: number;
+  native_spent_wei: string;
+  swap_tx: string | null;
   bought_raw: string;
+  pot_raw: string;
   distributed_raw: string;
   payout_count: number;
-  decimals: number;
   note: string | null;
 }
 
@@ -19,10 +19,9 @@ export interface Cycle {
   dry_run: boolean;
   started_at: string;
   finished_at: string | null;
-  claim_signature: string | null;
-  claimed_lamports: string;
+  block_number: number | null;
+  native_spent_wei: string;
   swap_provider: string | null;
-  sol_spent_lamports: string;
   holder_count: number;
   eligible_count: number;
   capped_count: number;
@@ -44,17 +43,17 @@ export interface SnapshotHolder {
 export interface Payout {
   cycle_id: string;
   owner: string;
-  mint: string;
+  token: string;
   symbol: string;
   amount_raw: string;
   status: string;
-  signature: string | null;
+  tx_hash: string | null;
   created_at: string;
   confirmed_at: string | null;
 }
 
 export interface RewardTotal {
-  mint: string;
+  token: string;
   symbol: string;
   distributed_raw: string;
   payout_count: number;
@@ -64,8 +63,7 @@ export interface RewardTotal {
 
 export interface AirdropStats {
   completed_cycles: number;
-  total_claimed_lamports: string;
-  total_sol_spent_lamports: string;
+  total_native_spent_wei: string;
   total_payouts: number;
   unique_recipients: number;
   last_completed_at: string | null;
@@ -91,7 +89,7 @@ export interface HoldersResponse {
 }
 
 export interface WalletTotal {
-  mint: string;
+  token: string;
   symbol: string;
   totalReceivedRaw: string;
   payoutCount: number;

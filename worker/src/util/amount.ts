@@ -23,18 +23,3 @@ export function formatUi(raw: bigint, decimals: number, maxFractionDigits = deci
   const body = fraction ? `${whole}.${fraction}` : whole.toString();
   return negative ? `-${body}` : body;
 }
-
-export const LAMPORTS_PER_SOL = 1_000_000_000n;
-
-export function lamportsToSol(lamports: bigint | number): number {
-  return Number(lamports) / 1e9;
-}
-
-/**
- * Convert a compute-unit price into the flat SOL priority fee that
- * pump.fun-style APIs expect.
- */
-export function priorityFeeSol(microLamportsPerCu: number, computeUnits = 200_000): number {
-  const lamports = (microLamportsPerCu * computeUnits) / 1_000_000;
-  return Number((lamports / 1e9).toFixed(9));
-}

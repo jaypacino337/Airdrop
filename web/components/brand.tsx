@@ -1,81 +1,18 @@
 import { cn } from '@/lib/cn';
+import { siteConfig } from '@/lib/config';
 
-/** The silhouette, shared by the mark and the favicon. */
-const HORN_LEFT = 'M78 108C40 96 16 64 10 8C30 54 56 82 94 94Z';
-const HORN_RIGHT = 'M122 108C160 96 184 64 190 8C170 54 144 82 106 94Z';
-const HEAD = 'M58 64C62 104 70 142 82 170C86 178 114 178 118 170C130 142 138 104 142 64Z';
-
-/**
- * The bull's head, filled with the flag: one flag is drawn across the whole
- * viewBox and clipped by the silhouette, which is why the canton lands on the
- * left horn and the stripes run straight across the head. The thin outline is
- * what keeps the white stripes readable against a white page.
- */
-export function BullMark({ className, id = 'bull' }: { className?: string; id?: string }) {
-  const clipId = `${id}-clip`;
-  const starId = `${id}-stars`;
-
+/** The mark: a survey-badge trefoil. Yellowcake on graphite. */
+export function Trefoil({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 200 200" role="img" aria-label="Trump Strategy" className={cn('h-9 w-9', className)}>
-      <defs>
-        <clipPath id={clipId}>
-          <path d={HORN_LEFT} />
-          <path d={HORN_RIGHT} />
-          <path d={HEAD} />
-        </clipPath>
-
-        <pattern id={starId} width="26" height="22" patternUnits="userSpaceOnUse">
-          <path
-            d="M13 4.5l2.1 4.5 4.9.6-3.6 3.4 1 4.9L13 15.5 8.6 17.9l1-4.9L6 9.6l4.9-.6z"
-            fill="#ffffff"
-          />
-        </pattern>
-      </defs>
-
-      {/* Keyline first: the clipped flag below covers every interior seam. */}
-      <g fill="none" stroke="#16306b" strokeOpacity="0.6" strokeWidth="8" strokeLinejoin="round">
-        <path d={HORN_LEFT} />
-        <path d={HORN_RIGHT} />
-        <path d={HEAD} />
+    <svg viewBox="0 0 64 64" aria-hidden="true" className={cn('h-8 w-8', className)}>
+      <circle cx="32" cy="32" r="30" fill="none" stroke="currentColor" strokeWidth="2.5" opacity="0.9" />
+      <circle cx="32" cy="32" r="6" fill="currentColor" />
+      <g fill="currentColor">
+        <path d="M45.50 8.62A27.0 27.0 0 0 0 18.50 8.62L26.25 22.04A11.5 11.5 0 0 1 37.75 22.04Z" />
+        <path d="M5.00 32.00A27.0 27.0 0 0 0 18.50 55.38L26.25 41.96A11.5 11.5 0 0 1 20.50 32.00Z" />
+        <path d="M45.50 55.38A27.0 27.0 0 0 0 59.00 32.00L43.50 32.00A11.5 11.5 0 0 1 37.75 41.96Z" />
       </g>
-
-      <g clipPath={`url(#${clipId})`}>
-        {/* 13 stripes, red on white */}
-        <rect x="0" y="0" width="200" height="200" fill="#ffffff" />
-        {Array.from({ length: 7 }, (_, i) => (
-          <rect key={i} x="0" y={i * 30.8} width="200" height="15.4" fill="#d3202a" />
-        ))}
-        {/* canton */}
-        <rect x="0" y="0" width="98" height="106" fill="#16306b" />
-        <rect x="0" y="0" width="98" height="106" fill={`url(#${starId})`} />
-      </g>
-
     </svg>
-  );
-}
-
-/** The wordmark, letter-coloured like the logo: red -> white -> navy. */
-export function Wordmark({
-  className,
-  stacked = false,
-}: {
-  className?: string;
-  stacked?: boolean;
-}) {
-  return (
-    <span className={cn('wordmark inline-block', className)}>
-      <span className="whitespace-nowrap">
-        <span className="ink-red">Tru</span>
-        <span className="ink-white">m</span>
-        <span className="ink-navy">p</span>
-      </span>
-      {stacked ? <br /> : <span> </span>}
-      <span className="whitespace-nowrap">
-        <span className="ink-navy">Stra</span>
-        <span className="ink-white">te</span>
-        <span className="ink-red">gy</span>
-      </span>
-    </span>
   );
 }
 
@@ -83,8 +20,12 @@ export function Wordmark({
 export function BrandLock({ className }: { className?: string }) {
   return (
     <span className={cn('flex items-center gap-2.5', className)}>
-      <BullMark className="h-9 w-9 shrink-0" id="lock" />
-      <Wordmark className="compact text-lg" />
+      <Trefoil className="h-7 w-7 shrink-0 text-primary" />
+      <span className="font-mono text-sm font-semibold tracking-[0.14em]">
+        <span className="text-brand">URANIUM</span>{' '}
+        <span className="text-foreground">STRATEGY</span>
+        <span className="text-muted-foreground"> · ${siteConfig.ticker}</span>
+      </span>
     </span>
   );
 }
