@@ -7,7 +7,7 @@ const rules = [
   {
     icon: Coins,
     title: `${formatNumber(siteConfig.minEligibleTokens)} ${siteConfig.ticker} minimum`,
-    body: `A wallet needs at least ${formatNumber(siteConfig.minEligibleTokens)} ${siteConfig.ticker} at the moment of the snapshot. Below that it is skipped — network fees would eat the reward.`,
+    body: `A wallet needs at least ${formatNumber(siteConfig.minEligibleTokens)} ${siteConfig.ticker} at the moment of the snapshot. Below that it is skipped — the gas would eat the reward.`,
   },
   {
     icon: Gauge,
@@ -16,8 +16,8 @@ const rules = [
   },
   {
     icon: Ban,
-    title: 'Pools & PDAs excluded',
-    body: 'Liquidity pools, the pump.fun bonding curve, lockers — any program-owned (PDA) account — and the treasury itself are removed from every snapshot, so rewards go to real holders instead of back into the pool.',
+    title: 'Contracts excluded',
+    body: 'Liquidity pools, routers, lockers and the treasury itself are removed from every snapshot, so rewards go to real holders instead of back into the pool.',
   },
   {
     icon: Recycle,

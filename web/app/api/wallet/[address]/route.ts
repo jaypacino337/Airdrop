@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { siteConfig } from '@/lib/config';
-import { isSolanaAddress } from '@/lib/format';
+import { isEvmAddress } from '@/lib/format';
 import { supabaseConfigured, supabaseSelect } from '@/lib/supabase';
 import type { Cycle, Payout, SnapshotHolder, WalletResponse } from '@/lib/types';
 
@@ -21,11 +21,10 @@ interface LeaderboardRow {
  */
 export async function GET(_request: Request, context: { params: Promise<{ address: string }> }) {
   const { address: raw } = await context.params;
-  // Base58 is case-sensitive: never lowercase a Solana address.
-  const address = decodeURIComponent(raw ?? '').trim();
+  const address = decodeURIComponent(raw ?? '').trim().toLowerCase();
 
-  if (!isSolanaAddress(address)) {
-    return NextResponse.json({ error: 'That does not look like a Solana wallet address.' }, { status: 400 });
+  if (!isEvmAddress(address)) {
+    return NextResponse.json({ error: 'That does not look like a 0x wallet address.' }, { status: 400 });
   }
 
   const empty: WalletResponse = {
@@ -54,11 +53,9 @@ export async function GET(_request: Request, context: { params: Promise<{ addres
             `snapshot_holders?select=owner,balance_raw,balance_ui,share_bps,capped&cycle_id=eq.${cycleId}&owner=eq.${address}&limit=1`,
           )
         : Promise.resolve([]),
-      supabaseSelect<LeaderboardRow>(
-        `leaderboard?select=owner,token,symbol,total_received_raw::text,payout_count&owner=eq.${address}`,
-      ),
+      supabaseSelect<LeaderboardRow>(`leaderboard?select=*&owner=eq.${address}`),
       supabaseSelect<Payout>(
-        `payouts?select=cycle_id,owner,token,symbol,amount_raw::text,status,tx_id,created_at,confirmed_at&owner=eq.${address}&order=created_at.desc&limit=30`,
+        `payouts?select=cycle_id,owner,token,symbol,amount_raw,status,tx_hash,created_at,confirmed_at&owner=eq.${address}&order=created_at.desc&limit=30`,
       ),
     ]);
 

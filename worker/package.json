@@ -8,18 +8,15 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test test/*.test.ts",
-    "cycle:once": "tsx src/cli/run-once.ts",
-    "e2e:localnet": "tsx scripts/e2e-localnet.ts"
+    "cycle:once": "tsx src/cli/run-once.ts"
   },
   "dependencies": {
-    "@fastify/cors": "11.2.0",
-    "@solana/spl-token": "0.4.14",
-    "@solana/web3.js": "1.98.4",
     "@supabase/supabase-js": "2.112.3",
-    "bs58": "6.0.0",
+    "ethers": "6.17.0",
     "fastify": "5.12.1",
+    "@fastify/cors": "11.2.0",
     "zod": "4.4.3"
   },
   "devDependencies": {

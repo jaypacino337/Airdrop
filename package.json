@@ -2,7 +2,7 @@
   "name": "trump-strategy-airdrop",
   "version": "1.0.0",
   "private": true,
-  "description": "Uranium Strategy ($USTR) — pump.fun creator-fee claim, optional buyback and capped pro-rata SPL airdrop engine on Solana.",
+  "description": "Trump Strategy — automated pump.fun creator-fee claim, 50/50 WLFI + TRUMP buyback and pro-rata airdrop engine.",
   "workspaces": [
     "worker",
     "web"

@@ -4,7 +4,7 @@ export interface CycleReward {
   symbol: string;
   weight_bps: number;
   decimals: number;
-  native_spent_raw: string;
+  native_spent_wei: string;
   swap_tx: string | null;
   bought_raw: string;
   pot_raw: string;
@@ -19,11 +19,8 @@ export interface Cycle {
   dry_run: boolean;
   started_at: string;
   finished_at: string | null;
-  /** Slot the holder snapshot was taken at. */
-  chain_height: number | null;
-  fees_claimed_raw: string;
-  claim_tx: string | null;
-  native_spent_raw: string;
+  block_number: number | null;
+  native_spent_wei: string;
   swap_provider: string | null;
   holder_count: number;
   eligible_count: number;
@@ -50,7 +47,7 @@ export interface Payout {
   symbol: string;
   amount_raw: string;
   status: string;
-  tx_id: string | null;
+  tx_hash: string | null;
   created_at: string;
   confirmed_at: string | null;
 }
@@ -66,8 +63,7 @@ export interface RewardTotal {
 
 export interface AirdropStats {
   completed_cycles: number;
-  total_fees_claimed_raw: string;
-  total_native_spent_raw: string;
+  total_native_spent_wei: string;
   total_payouts: number;
   unique_recipients: number;
   last_completed_at: string | null;

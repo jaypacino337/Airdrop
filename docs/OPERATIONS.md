@@ -18,9 +18,8 @@ Every cycle writes one row in `cycles` with each leg recorded as it happens:
 
 | Column | Meaning |
 | --- | --- |
-| `fees_claimed_raw` / `claim_tx` | lamports the pump.fun creator-fee claim actually produced (a balance delta, not a quote), and its signature |
-| `native_spent_raw` | total lamports spent buying across all reward tokens |
-| `chain_height` | the slot the holder snapshot was taken at |
+| `claimed_lamports` | native the creator-fee claim actually produced (measured as a balance delta, not a quote) |
+| `sol_spent_lamports` | total native spent buying across all reward tokens |
 | `payout_count` / `tx_count` | payouts confirmed and transactions sent across all reward tokens |
 | `eligible_count` / `capped_count` | how many wallets qualified, and how many hit the 4% ceiling |
 | `note` | why a leg was skipped (nothing to claim, below the swap minimum, cap relaxed…) |
@@ -35,35 +34,23 @@ cycle, with the signature and confirmation state.
 volume: no fees to claim means nothing to buy. Check `note` on the cycle row and
 the per-token `cycle_rewards` rows.
 
-**`below MIN_SWAP_LAMPORTS, rolls over`.** Fees are accruing
-more slowly than the reserve threshold. Either lower `MIN_SWAP_LAMPORTS` or leave
+**`swap: only 0.00x native spendable, below MIN_SWAP_WEI`.** Fees are accruing
+more slowly than the reserve threshold. Either lower `MIN_SWAP_WEI` or leave
 it — unspent native carries into the next cycle.
 
-**A payout batch failed.** Rejected or reverted batches become `failed` with
-no signature and are resent next cycle. Batches with an unknown outcome stay
-`sent` with their signature. The next cycle looks that signature up on chain:
-if it landed, the rows are marked confirmed; if its blockhash has expired
-without landing, they're resent; otherwise they're left alone until it's
-decided. Nothing is ever sent twice.
-
-**`payouts postponed … treasury has X SOL, needs ~Y`.** The treasury can't
-cover transaction fees plus rent for new recipient token accounts. Top it up
-with SOL; the rows stay pending and go out next cycle.
-
-**`fees: creator fees below MIN_CLAIM_LAMPORTS`.** Normal at low volume. The
-fees wait in the pump.fun vault until there's enough to be worth a claim.
+**A payout batch failed.** The rows stay `failed` and are retried on the next
+cycle by `pendingPayouts`, after each signature is re-checked on chain so a
+transaction that actually landed is never sent twice.
 
 **`per-wallet cap relaxed`.** Fewer than 25 wallets qualified, so 4% each cannot
 add up to a whole drop. The cycle distributes pro-rata instead and records the
 reason. It resolves itself as the holder base grows.
 
-**Transactions don't land under congestion.** Raise `PRIORITY_MICROLAMPORTS`
-(payouts) or `PUMPPORTAL_PRIORITY_FEE_SOL` (claims and buys). Lower
-`PAYOUT_BATCH_SIZE` if simulation complains about transaction size or compute.
+**Transactions time out.** Raise `TX_TIMEOUT_MS`, or lower
+`MAX_PAYOUTS_PER_CYCLE` if simulation complains about transaction size.
 
-**`Holder scans need a dedicated RPC`.** `SOLANA_RPC_URL` points at the public
-endpoint, which rejects `getProgramAccounts`. Use Helius, Triton or QuickNode,
-or set `HELIUS_API_KEY` to snapshot through Helius `getTokenAccounts`.
+**the RPC rate limits.** The snapshot falls back to `getProgramAccounts`
+automatically; it is slower but works on any RPC.
 
 ## Changing the rules
 
@@ -116,4 +103,4 @@ delete from public.events
 - Nothing in the codebase logs a private key; the wallet module deliberately
   never stringifies its secret.
 - If the creator wallet is ever compromised, move the coin's creator authority
-  and replace `TREASURY_SECRET_KEY` — the ledger stays intact.
+  and replace `TREASURY_PRIVATE_KEY` — the ledger stays intact.

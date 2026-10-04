@@ -25,7 +25,6 @@ const num = (def: number, min = 0) =>
     .transform((v) => (v === undefined || v === '' ? def : Number(v)))
     .pipe(z.number().min(min));
 
-/** Comma-separated list. Solana addresses are case-sensitive, so values are kept as written. */
 const list = () =>
   z
     .string()
@@ -33,15 +32,11 @@ const list = () =>
     .transform((v) =>
       (v ?? '')
         .split(',')
-        .map((s) => s.trim())
+        .map((s) => s.trim().toLowerCase())
         .filter(Boolean),
     );
 
-/** A base58 Solana public key (32 bytes encode to 32–44 characters). */
-export const SOLANA_ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-
-export const CLUSTERS = ['mainnet-beta', 'devnet', 'testnet', 'localnet'] as const;
-export type Cluster = (typeof CLUSTERS)[number];
+export const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
 const schema = z.object({
   NODE_ENV: z.string().default('development'),
@@ -55,16 +50,16 @@ const schema = z.object({
   // The three below are only needed to run a cycle, not to boot. The engine
   // starts in standby without them so a fresh deploy comes up green and can
   // be configured afterwards. See readiness.ts.
-  SOLANA_RPC_URL: z.string().default(''),
-  TREASURY_SECRET_KEY: z.string().default(''),
-  PROJECT_TOKEN_MINT: z.string().default(''),
+  EVM_RPC_URL: z.string().default(''),
+  TREASURY_PRIVATE_KEY: z.string().default(''),
+  PROJECT_TOKEN_ADDRESS: z.string().default(''),
 
-  /** Optional: Helius key for the paginated getTokenAccounts holder scan. */
-  HELIUS_API_KEY: z.string().default(''),
-  /** Optional guard: refuse to start if the RPC's genesis hash is a different cluster. */
-  SOLANA_CLUSTER: z.union([z.enum(CLUSTERS), z.literal('')]).default(''),
+  /** Block the USTR token was deployed at — where the holder index starts. */
+  PROJECT_TOKEN_DEPLOY_BLOCK: int(0),
+  /** Optional sanity check against the RPC's reported chain id. */
+  CHAIN_ID: int(0),
 
-  /** SYMBOL:MINT:WEIGHT_BPS, comma separated. Weights must total 10000. */
+  /** SYMBOL:0xADDRESS:WEIGHT_BPS, comma separated. Weights must total 10000. */
   REWARD_TOKENS: z.string().default(''),
 
   CYCLE_INTERVAL_MS: int(300_000, 30_000),
@@ -73,32 +68,24 @@ const schema = z.object({
   MIN_ELIGIBLE_TOKENS: num(500_000),
   MAX_WALLET_SHARE_BPS: int(400, 1).pipe(z.number().max(10_000)),
   EXCLUDED_WALLETS: list(),
-  /** Off-curve owners (PDAs: pools, bonding curves, lockers) never receive the airdrop. */
+  /** Contracts (pools, routers, lockers) never receive the airdrop. */
   EXCLUDE_CONTRACT_HOLDERS: bool(true),
 
-  /** pumpfun: claim pump.fun creator fees into the treasury at the start of every cycle. */
-  FEE_CLAIM: z.enum(['disabled', 'pumpfun']).default('pumpfun'),
-  /** Claims smaller than this wait for a later cycle (0.01 SOL). */
-  MIN_CLAIM_LAMPORTS: z.string().default('10000000'),
-
-  SWAP_PROVIDER: z.enum(['disabled', 'pumpportal']).default('disabled'),
-  /** PumpPortal pool: auto | pump | pump-amm | raydium | raydium-cpmm | launchlab | bonk. */
-  SWAP_POOL: z.string().default('auto'),
-  SWAP_SLIPPAGE_BPS: int(1_000, 1).pipe(z.number().max(5_000)),
-  /** Priority fee PumpPortal adds to claim and buy transactions, in SOL. */
-  PUMPPORTAL_PRIORITY_FEE_SOL: num(0.00005),
-  /** SOL kept back for fees and recipient token-account rent. Default 0.05 SOL. */
-  NATIVE_RESERVE_LAMPORTS: z.string().default('50000000'),
-  MIN_SWAP_LAMPORTS: z.string().default('10000000'),
+  SWAP_PROVIDER: z.enum(['disabled', 'univ2']).default('disabled'),
+  ROUTER_ADDRESS: z.string().default(''),
+  WRAPPED_NATIVE_ADDRESS: z.string().default(''),
+  SWAP_SLIPPAGE_BPS: int(300, 1).pipe(z.number().max(5_000)),
+  /** Native kept back for gas. Default 0.02 (18 decimals). */
+  NATIVE_RESERVE_WEI: z.string().default('20000000000000000'),
+  MIN_SWAP_WEI: z.string().default('5000000000000000'),
 
   MIN_PAYOUT_RAW: z.string().default('1'),
   SNAPSHOT_PERSIST_LIMIT: int(200, 0),
-  /** Hard cap on payout rows sent per cycle; the rest resume next cycle. */
+  /** Hard cap on transfers sent per cycle; the rest resume next cycle. */
   MAX_PAYOUTS_PER_CYCLE: int(250, 1),
-  /** Transfers per transaction. Each may also create the recipient's token account. */
-  PAYOUT_BATCH_SIZE: int(4, 1).pipe(z.number().max(8)),
-  /** Compute-unit price for payout transactions, in micro-lamports. */
-  PRIORITY_MICROLAMPORTS: int(10_000, 0),
+  TX_TIMEOUT_MS: int(120_000, 5_000),
+  /** Blocks per eth_getLogs request while indexing holders. */
+  LOG_SCAN_CHUNK: int(5_000, 100),
 
   ADMIN_TOKEN: z.string().default(''),
   CORS_ORIGINS: z.string().default('*'),
@@ -106,8 +93,8 @@ const schema = z.object({
 
 export interface RewardTokenConfig {
   symbol: string;
-  /** Base58 SPL / Token-2022 mint address. */
-  mint: string;
+  /** Lowercase ERC-20 address. */
+  token: string;
   /** Share of each cycle's buyback in basis points. */
   weightBps: number;
 }
@@ -117,7 +104,7 @@ export type Env = z.infer<typeof schema> & {
 };
 
 /**
- * Parses `URANIUM:<MINT>:10000` or `A:<MINT>:5000,B:<MINT>:5000`.
+ * Parses `xU3O8:0x…:10000` or `XURA:0x…:5000,NNE:0x…:5000`.
  * The weights are how buyback funds split between the tokens each cycle.
  */
 export function parseRewardTokens(raw: string): RewardTokenConfig[] {
@@ -127,22 +114,22 @@ export function parseRewardTokens(raw: string): RewardTokenConfig[] {
     .filter(Boolean);
 
   if (entries.length === 0) {
-    throw new Error('REWARD_TOKENS is empty — expected SYMBOL:MINT:WEIGHT_BPS entries');
+    throw new Error('REWARD_TOKENS is empty — expected SYMBOL:0xADDRESS:WEIGHT_BPS entries');
   }
 
   const tokens = entries.map((entry) => {
-    const [symbol, mint, weight] = entry.split(':').map((piece) => piece.trim());
-    if (!symbol || !mint) {
-      throw new Error(`REWARD_TOKENS entry "${entry}" must look like SYMBOL:MINT:WEIGHT_BPS`);
+    const [symbol, token, weight] = entry.split(':').map((piece) => piece.trim());
+    if (!symbol || !token) {
+      throw new Error(`REWARD_TOKENS entry "${entry}" must look like SYMBOL:0xADDRESS:WEIGHT_BPS`);
     }
-    if (!SOLANA_ADDRESS.test(mint)) {
-      throw new Error(`REWARD_TOKENS entry "${symbol}" does not carry a valid base58 mint address`);
+    if (!EVM_ADDRESS.test(token)) {
+      throw new Error(`REWARD_TOKENS entry "${symbol}" does not carry a valid 0x address`);
     }
     const weightBps = weight === undefined || weight === '' ? NaN : Number(weight);
     if (!Number.isInteger(weightBps) || weightBps <= 0) {
       throw new Error(`REWARD_TOKENS entry "${symbol}" needs a positive integer weight in basis points`);
     }
-    return { symbol, mint, weightBps };
+    return { symbol: symbol.toUpperCase() === 'XU3O8' ? 'xU3O8' : symbol, token: token.toLowerCase(), weightBps };
   });
 
   const total = tokens.reduce((sum, token) => sum + token.weightBps, 0);
@@ -150,8 +137,8 @@ export function parseRewardTokens(raw: string): RewardTokenConfig[] {
     throw new Error(`REWARD_TOKENS weights add up to ${total} bps; they must total 10000 (100%)`);
   }
 
-  const mints = new Set(tokens.map((t) => t.mint));
-  if (mints.size !== tokens.length) throw new Error('REWARD_TOKENS lists the same token twice');
+  const addresses = new Set(tokens.map((t) => t.token));
+  if (addresses.size !== tokens.length) throw new Error('REWARD_TOKENS lists the same token twice');
 
   return tokens;
 }
@@ -175,18 +162,14 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   // configured yet" state rather than a crash at boot.
   let rewardTokens: RewardTokenConfig[] = [];
   if (env.REWARD_TOKENS.trim()) {
-    try {
-      rewardTokens = parseRewardTokens(env.REWARD_TOKENS);
-    } catch {
-      rewardTokens = []; // reported by checkReadiness()
-    }
-    if (rewardTokens.some((t) => t.mint === env.PROJECT_TOKEN_MINT.trim())) {
-      throw new Error('A reward token cannot be the same mint as PROJECT_TOKEN_MINT.');
+    rewardTokens = parseRewardTokens(env.REWARD_TOKENS);
+    if (rewardTokens.some((t) => t.token === env.PROJECT_TOKEN_ADDRESS.toLowerCase())) {
+      throw new Error('A reward token cannot be the same address as PROJECT_TOKEN_ADDRESS.');
     }
   }
 
-  for (const key of ['NATIVE_RESERVE_LAMPORTS', 'MIN_SWAP_LAMPORTS', 'MIN_CLAIM_LAMPORTS', 'MIN_PAYOUT_RAW'] as const) {
-    if (!/^\d+$/.test(env[key])) throw new Error(`${key} must be a plain integer (raw units).`);
+  if (!/^\d+$/.test(env.NATIVE_RESERVE_WEI) || !/^\d+$/.test(env.MIN_SWAP_WEI) || !/^\d+$/.test(env.MIN_PAYOUT_RAW)) {
+    throw new Error('NATIVE_RESERVE_WEI, MIN_SWAP_WEI and MIN_PAYOUT_RAW must be plain integers (raw units).');
   }
 
   cached = { ...env, rewardTokens };

@@ -8,7 +8,7 @@ const faqs = [
   },
   {
     q: 'What exactly funds the airdrop?',
-    a: `${siteConfig.name}'s pump.fun creator fees. The engine claims them into the public treasury wallet, get converted into ${rewardList}, and go out every ${cycleMinutes} minutes. More volume, bigger drops; no volume means a cycle simply passes.`,
+    a: `${siteConfig.name}'s creator fees from Pons trading. They accrue to the public treasury wallet, get converted into ${rewardList}, and go out every ${cycleMinutes} minutes. More volume, bigger drops; no volume means a cycle simply passes.`,
   },
   {
     q: 'What is the "uranium" I receive?',
@@ -32,7 +32,7 @@ const faqs = [
   },
   {
     q: `Why ${formatNumber(siteConfig.minEligibleTokens)} ${siteConfig.ticker} minimum?`,
-    a: 'Below roughly that size a payout is worth less than the network fee and token-account rent needed to send it. The minimum keeps the distribution economical instead of burning the pot on dust transfers.',
+    a: 'Below roughly that size a payout is worth less than the gas needed to send it. The minimum keeps the distribution economical instead of burning the pot on dust transfers.',
   },
 ];
 

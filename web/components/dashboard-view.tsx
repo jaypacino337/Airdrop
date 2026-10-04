@@ -13,7 +13,7 @@ import {
   rewardTokens,
   siteConfig,
 } from '@/lib/config';
-import { formatSol, formatNumber, formatRaw, shortAddress, timeAgo } from '@/lib/format';
+import { formatNative, formatNumber, formatRaw, shortAddress, timeAgo } from '@/lib/format';
 import type { Cycle, CycleReward, HoldersResponse, Payout } from '@/lib/types';
 import { useLiveStats } from '@/lib/use-live-stats';
 
@@ -71,11 +71,8 @@ export function DashboardView() {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6">
-      <header className="fade-up">
-        <p className="readout mb-2 flex items-center gap-2 !text-brand">
-          <span aria-hidden className="geiger h-1.5 w-1.5 rounded-full bg-accent" />
-          Distribution log · live, refreshes every 30s
-        </p>
+      <header>
+        <p className="readout mb-2 !text-brand">Distribution log</p>
         <h1 className="font-mono text-3xl font-bold uppercase tracking-tight md:text-5xl">
           Live feed
         </h1>
@@ -174,10 +171,9 @@ export function DashboardView() {
                         .map((reward) => (
                           <TxLink key={reward.token} hash={reward.swap_tx!} label={reward.symbol.toLowerCase()} />
                         ))}
-                      {cycle.claim_tx ? <TxLink hash={cycle.claim_tx} label="claim" /> : null}
-                      {cycle.chain_height ? (
-                        <span className="font-mono text-xs text-muted-foreground" title="Snapshot slot">
-                          slot {cycle.chain_height}
+                      {cycle.block_number ? (
+                        <span className="font-mono text-xs text-muted-foreground">
+                          #{cycle.block_number}
                         </span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
@@ -252,8 +248,8 @@ export function DashboardView() {
                   {formatRaw(payout.amount_raw, decimalsFor(payout.token, payout.symbol), 4)}{' '}
                   <span className="text-xs font-normal text-muted-foreground">{payout.symbol}</span>
                 </span>
-                {payout.tx_id && explorerTx(payout.tx_id) ? (
-                  <TxLink hash={payout.tx_id} label="tx" />
+                {payout.tx_hash && explorerTx(payout.tx_hash) ? (
+                  <TxLink hash={payout.tx_hash} label="tx" />
                 ) : (
                   <span className="text-xs text-muted-foreground">
                     {timeAgo(payout.confirmed_at ?? payout.created_at)}
@@ -271,8 +267,7 @@ export function DashboardView() {
       <WalletChecker />
 
       <p className="readout text-center">
-        Creator fees claimed: {formatSol(stats.total_fees_claimed_raw)} SOL · spent on buybacks:{' '}
-        {formatSol(stats.total_native_spent_raw)} SOL ·{' '}
+        Treasury native spent on buybacks: {formatNative(stats.total_native_spent_wei)} ·{' '}
         {formatNumber(stats.total_payouts)} total payouts
       </p>
     </div>
@@ -316,7 +311,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="panel fade-up min-w-0 rounded-md p-6">
+    <section className="panel rounded-md p-6">
       <div className="mb-5">
         <h2 className="font-mono text-base font-bold uppercase tracking-[0.08em]">{title}</h2>
         {subtitle ? <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p> : null}

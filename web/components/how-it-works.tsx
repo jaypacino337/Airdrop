@@ -5,7 +5,7 @@ const steps = [
   {
     icon: Banknote,
     title: 'Fees hit the treasury',
-    body: `Every cycle the engine claims the pump.fun creator fees from ${siteConfig.ticker} trading into the treasury wallet. Every claim is a public Solana transaction — the treasury address is public.`,
+    body: `Creator fees from ${siteConfig.ticker} trading on Pons accrue to the treasury wallet. Every movement is visible on the explorer — the treasury address is public.`,
   },
   {
     icon: ShoppingCart,
@@ -15,12 +15,12 @@ const steps = [
   {
     icon: Camera,
     title: 'Holders are snapshotted',
-    body: `The engine reads every ${siteConfig.ticker} token account on Solana at a single slot. Pools, the bonding curve and every other program-owned (PDA) account are filtered out automatically.`,
+    body: `The engine maintains a live index of every ${siteConfig.ticker} holder straight from Transfer logs. Pools, routers and other contracts are filtered out automatically.`,
   },
   {
     icon: Send,
     title: 'Airdrop, pro-rata',
-    body: `Each qualifying wallet's share is calculated, the per-wallet cap is applied, and ${rewardList} is transferred directly — the engine even opens your token account if you don't have one. It simply appears in your wallet.`,
+    body: `Each qualifying wallet's share is calculated, the per-wallet cap is applied, and ${rewardList} is transferred directly. It simply appears in your wallet.`,
   },
 ];
 

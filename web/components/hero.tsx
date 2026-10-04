@@ -32,9 +32,9 @@ export function Hero() {
         </h1>
 
         <p className="fade-up mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Every {cycleMinutes} minutes the engine takes {siteConfig.name}&apos;s pump.fun creator fees,
+          Every {cycleMinutes} minutes the engine takes {siteConfig.name}&apos;s Pons creator fees,
           converts them into {rewardList} — tokenized uranium exposure — snapshots every{' '}
-          {siteConfig.ticker} holder on Solana and sends it out pro-rata. No claiming. No staking. No
+          {siteConfig.ticker} holder on-chain and sends it out pro-rata. No claiming. No staking. No
           forms.
         </p>
 
@@ -56,7 +56,7 @@ export function Hero() {
 
         <p className="fade-up readout mt-7">
           {formatNumber(siteConfig.minEligibleTokens)} {siteConfig.ticker} minimum ·{' '}
-          {maxWalletSharePct}% per-wallet cap · pools &amp; PDAs excluded
+          {maxWalletSharePct}% per-wallet cap · contracts &amp; pools excluded
         </p>
 
         <HeroStats />

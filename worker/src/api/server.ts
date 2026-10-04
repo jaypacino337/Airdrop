@@ -2,16 +2,15 @@ import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Context } from '../context.js';
 import { isCycleRunning, runCycle } from '../cycle.js';
-import type { Env } from '../env.js';
-import { isValidAddress } from '../chain/solana.js';
-import type { LedgerRepo } from '../db/repo.js';
+import { EVM_ADDRESS, type Env } from '../env.js';
+import type { Repo } from '../db/repo.js';
 import { errorMessage, log } from '../logger.js';
 import type { Readiness } from '../readiness.js';
 import { formatUi } from '../util/amount.js';
 
 export interface ServerDeps {
   env: Env;
-  repo: LedgerRepo;
+  repo: Repo;
   /** Null until the treasury and tokens are configured — see readiness.ts. */
   ctx: Context | null;
   readiness: Readiness;
@@ -40,16 +39,11 @@ export async function createServer(deps: ServerDeps): Promise<FastifyInstance> {
   app.get('/api/config', async () => ({
     ready: readiness.ready,
     missing: readiness.missing,
-    chain: 'solana',
-    projectToken: ctx
-      ? { mint: ctx.projectToken.mint, decimals: ctx.projectToken.decimals, program: ctx.projectToken.programId.toBase58() }
-      : null,
-    treasury: ctx?.treasury.publicKey.toBase58() ?? null,
-    feeClaim: env.FEE_CLAIM,
-    swapProvider: env.SWAP_PROVIDER,
+    projectToken: ctx?.projectToken ?? null,
+    treasury: ctx?.wallet.address ?? null,
     rewardTokens: (ctx?.rewards ?? []).map((reward) => ({
       symbol: reward.symbol,
-      token: reward.info.mint,
+      token: reward.info.address,
       weightBps: reward.weightBps,
       decimals: reward.info.decimals,
     })),
@@ -71,16 +65,15 @@ export async function createServer(deps: ServerDeps): Promise<FastifyInstance> {
   });
 
   app.get<{ Params: { address: string } }>('/api/wallet/:address', async (request, reply) => {
-    // Base58 is case-sensitive: never lowercase a Solana address.
-    const address = request.params.address.trim();
-    if (!isValidAddress(address)) {
-      return reply.code(400).send({ error: 'not a valid Solana wallet address' });
+    const address = request.params.address.trim().toLowerCase();
+    if (!EVM_ADDRESS.test(address)) {
+      return reply.code(400).send({ error: 'not a valid 0x wallet address' });
     }
     const [totals, history] = await Promise.all([
       repo.walletTotals(address),
       repo.walletHistory(address, 50),
     ]);
-    const decimalsByToken = new Map((ctx?.rewards ?? []).map((r) => [r.info.mint, r.info.decimals]));
+    const decimalsByToken = new Map((ctx?.rewards ?? []).map((r) => [r.info.address, r.info.decimals]));
     return {
       address,
       totals: totals.map((total) => ({
@@ -89,7 +82,7 @@ export async function createServer(deps: ServerDeps): Promise<FastifyInstance> {
         totalReceivedRaw: total.total_received_raw,
         totalReceivedUi: formatUi(
           BigInt(String(total.total_received_raw || '0').split('.')[0] ?? '0'),
-          decimalsByToken.get(total.token) ?? 6,
+          decimalsByToken.get(total.token) ?? 18,
           6,
         ),
         payoutCount: total.payout_count,
