@@ -12,3 +12,4 @@ coverage/
 .railway/
 .next/
 next-env.d.ts
+qa/

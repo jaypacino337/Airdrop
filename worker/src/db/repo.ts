@@ -9,8 +9,13 @@ export type PayoutStatus = 'pending' | 'sent' | 'confirmed' | 'failed' | 'skippe
 export interface CyclePatch {
   status?: CycleStatus;
   finished_at?: string;
-  block_number?: number;
-  native_spent_wei?: string;
+  /** Slot the holder snapshot was taken at. */
+  chain_height?: number;
+  /** Lamports claimed from pump.fun creator fees this cycle. */
+  fees_claimed_raw?: string;
+  claim_tx?: string | null;
+  /** Lamports spent buying reward tokens. */
+  native_spent_raw?: string;
   swap_provider?: string | null;
   holder_count?: number;
   eligible_count?: number;
@@ -25,7 +30,7 @@ export interface CycleRewardPatch {
   symbol: string;
   weight_bps: number;
   decimals: number;
-  native_spent_wei?: string;
+  native_spent_raw?: string;
   swap_tx?: string | null;
   bought_raw?: string;
   pot_raw?: string;
@@ -41,19 +46,56 @@ export interface PayoutRow {
   token: string;
   amount_raw: string;
   status: PayoutStatus;
-  tx_hash: string | null;
+  /** Transaction signature, written BEFORE the transaction is broadcast. */
+  tx_id: string | null;
+  /** Block height after which tx_id can no longer land (resend is then safe). */
+  last_valid_height: number | null;
   attempts: number;
 }
 
-export interface HolderRow {
-  address: string;
-  balance_raw: string;
-  is_contract: boolean | null;
+export interface PayoutPatch {
+  status: PayoutStatus;
+  tx_id?: string | null;
+  last_valid_height?: number | null;
+  error?: string | null;
+  attempts?: number;
 }
+
+export interface SnapshotRow {
+  owner: string;
+  balanceRaw: bigint;
+  balanceUi: number;
+  shareBps: number;
+  capped: boolean;
+}
+
+/**
+ * Everything the engine reads and writes. SupabaseRepo is the production
+ * ledger; tests and the localnet end-to-end run use an in-memory one.
+ */
+export interface LedgerRepo {
+  createCycle(dryRun: boolean): Promise<string>;
+  updateCycle(cycleId: string, patch: CyclePatch): Promise<void>;
+  upsertCycleReward(cycleId: string, token: string, patch: CycleRewardPatch): Promise<void>;
+  saveSnapshot(cycleId: string, rows: SnapshotRow[]): Promise<void>;
+  stagePayouts(cycleId: string, token: string, symbol: string, allocations: readonly Allocation[]): Promise<void>;
+  pendingPayouts(token: string, limit: number): Promise<PayoutRow[]>;
+  /** Sum of every staged-but-unconfirmed payout of a token — already promised, not pot. */
+  outstandingRaw(token: string): Promise<bigint>;
+  markPayouts(ids: number[], patch: PayoutPatch): Promise<void>;
+  logEvent(level: 'debug' | 'info' | 'warn' | 'error', message: string, meta?: Record<string, unknown>, cycleId?: string): Promise<void>;
+  lastCycles(limit: number): Promise<unknown[]>;
+  stats(): Promise<Record<string, unknown>>;
+  rewardTotals(): Promise<unknown[]>;
+  walletTotals(owner: string): Promise<Array<{ token: string; symbol: string; total_received_raw: string; payout_count: number }>>;
+  walletHistory(owner: string, limit: number): Promise<unknown[]>;
+}
+
+const OPEN_STATUSES: PayoutStatus[] = ['pending', 'sent', 'failed'];
 
 const CHUNK = 500;
 
-export class Repo {
+export class SupabaseRepo implements LedgerRepo {
   constructor(private readonly db: SupabaseClient) {}
 
   // --- cycles ---------------------------------------------------------------
@@ -80,98 +122,11 @@ export class Repo {
     if (error) throw new Error(`upsertCycleReward failed: ${error.message}`);
   }
 
-  // --- holder index ---------------------------------------------------------
-
-  async indexerState(): Promise<{ token_address: string; last_block: number } | null> {
-    const { data, error } = await this.db.from('indexer_state').select('*').eq('id', 1).maybeSingle();
-    if (error) throw new Error(`indexerState failed: ${error.message}`);
-    if (!data) return null;
-    return { token_address: data.token_address as string, last_block: Number(data.last_block) };
-  }
-
-  async setIndexerState(token: string, lastBlock: number): Promise<void> {
-    const { error } = await this.db
-      .from('indexer_state')
-      .upsert({ id: 1, token_address: token, last_block: lastBlock, updated_at: new Date().toISOString() });
-    if (error) throw new Error(`setIndexerState failed: ${error.message}`);
-  }
-
-  async resetHolders(): Promise<void> {
-    const { error } = await this.db.from('holders').delete().neq('address', '');
-    if (error) throw new Error(`resetHolders failed: ${error.message}`);
-  }
-
-  /** Fold Transfer-log deltas into the stored balances. */
-  async applyBalanceDeltas(deltas: Map<string, bigint>): Promise<void> {
-    const addresses = [...deltas.keys()];
-    const current = new Map<string, bigint>();
-
-    for (const batch of chunk(addresses, 200)) {
-      const { data, error } = await this.db
-        .from('holders')
-        .select('address, balance_raw')
-        .in('address', batch);
-      if (error) throw new Error(`applyBalanceDeltas read failed: ${error.message}`);
-      for (const row of data ?? []) current.set(row.address as string, BigInt(String(row.balance_raw).split('.')[0] ?? '0'));
-    }
-
-    const upserts = addresses.map((address) => {
-      let balance = (current.get(address) ?? 0n) + deltas.get(address)!;
-      if (balance < 0n) {
-        // Should be impossible with a complete log history; clamp and warn so
-        // one bad row cannot make the whole cycle throw.
-        log.warn('negative balance clamped to zero — index may need a rebuild', { address });
-        balance = 0n;
-      }
-      return { address, balance_raw: balance.toString(), updated_at: new Date().toISOString() };
-    });
-
-    for (const batch of chunk(upserts, CHUNK)) {
-      const { error } = await this.db.from('holders').upsert(batch, { onConflict: 'address' });
-      if (error) throw new Error(`applyBalanceDeltas write failed: ${error.message}`);
-    }
-  }
-
-  async holdersWithUnknownKind(limit: number): Promise<string[]> {
-    const { data, error } = await this.db
-      .from('holders')
-      .select('address')
-      .is('is_contract', null)
-      .gt('balance_raw', 0)
-      .order('balance_raw', { ascending: false })
-      .limit(limit);
-    if (error) throw new Error(`holdersWithUnknownKind failed: ${error.message}`);
-    return (data ?? []).map((row) => row.address as string);
-  }
-
-  async markHolderKind(address: string, isContract: boolean): Promise<void> {
-    const { error } = await this.db.from('holders').update({ is_contract: isContract }).eq('address', address);
-    if (error) throw new Error(`markHolderKind failed: ${error.message}`);
-  }
-
-  /** Every address with a positive balance, paginated out of PostgREST. */
-  async allHolders(): Promise<HolderRow[]> {
-    const rows: HolderRow[] = [];
-    const page = 1_000;
-    for (let offset = 0; ; offset += page) {
-      const { data, error } = await this.db
-        .from('holders')
-        .select('address, balance_raw, is_contract')
-        .gt('balance_raw', 0)
-        .order('balance_raw', { ascending: false })
-        .range(offset, offset + page - 1);
-      if (error) throw new Error(`allHolders failed: ${error.message}`);
-      rows.push(...((data ?? []) as HolderRow[]));
-      if (!data || data.length < page) break;
-    }
-    return rows;
-  }
-
   // --- snapshots & payouts --------------------------------------------------
 
   async saveSnapshot(
     cycleId: string,
-    rows: Array<{ owner: string; balanceRaw: bigint; balanceUi: number; shareBps: number; capped: boolean }>,
+    rows: SnapshotRow[],
   ): Promise<void> {
     for (const batch of chunk(rows, CHUNK)) {
       const { error } = await this.db.from('snapshot_holders').upsert(
@@ -220,23 +175,44 @@ export class Repo {
   async pendingPayouts(token: string, limit: number): Promise<PayoutRow[]> {
     const { data, error } = await this.db
       .from('payouts')
-      .select('id, cycle_id, owner, token, amount_raw, status, tx_hash, attempts')
+      // ::text keeps raw amounts above 2^53 exact through JSON.
+      .select('id, cycle_id, owner, token, amount_raw::text, status, tx_id, last_valid_height, attempts')
       .eq('token', token)
-      .in('status', ['pending', 'failed', 'sent'])
+      .in('status', OPEN_STATUSES)
       .order('id', { ascending: true })
       .limit(limit);
     if (error) throw new Error(`pendingPayouts failed: ${error.message}`);
-    return (data ?? []) as PayoutRow[];
+    return ((data ?? []) as Array<Omit<PayoutRow, 'last_valid_height'> & { last_valid_height: number | string | null }>).map(
+      (row) => ({ ...row, last_valid_height: row.last_valid_height === null ? null : Number(row.last_valid_height) }),
+    );
   }
 
-  async markPayout(
-    id: number,
-    patch: { status: PayoutStatus; tx_hash?: string | null; error?: string | null; attempts?: number },
-  ): Promise<void> {
+  async outstandingRaw(token: string): Promise<bigint> {
+    let total = 0n;
+    const page = 1_000;
+    for (let offset = 0; ; offset += page) {
+      const { data, error } = await this.db
+        .from('payouts')
+        .select('amount_raw::text')
+        .eq('token', token)
+        .in('status', OPEN_STATUSES)
+        .order('id', { ascending: true })
+        .range(offset, offset + page - 1);
+      if (error) throw new Error(`outstandingRaw failed: ${error.message}`);
+      for (const row of (data ?? []) as Array<{ amount_raw: string }>) total += BigInt(row.amount_raw);
+      if (!data || data.length < page) break;
+    }
+    return total;
+  }
+
+  async markPayouts(ids: number[], patch: PayoutPatch): Promise<void> {
+    if (ids.length === 0) return;
     const body: Record<string, unknown> = { ...patch };
     if (patch.status === 'confirmed') body.confirmed_at = new Date().toISOString();
-    const { error } = await this.db.from('payouts').update(body).eq('id', id);
-    if (error) throw new Error(`markPayout failed: ${error.message}`);
+    for (const batch of chunk(ids, 200)) {
+      const { error } = await this.db.from('payouts').update(body).in('id', batch);
+      if (error) throw new Error(`markPayouts failed: ${error.message}`);
+    }
   }
 
   // --- telemetry & reads ----------------------------------------------------
@@ -283,7 +259,7 @@ export class Repo {
   ): Promise<Array<{ token: string; symbol: string; total_received_raw: string; payout_count: number }>> {
     const { data, error } = await this.db
       .from('leaderboard')
-      .select('token, symbol, total_received_raw, payout_count')
+      .select('token, symbol, total_received_raw::text, payout_count')
       .eq('owner', owner);
     if (error) throw new Error(`walletTotals failed: ${error.message}`);
     return (data ?? []) as Array<{ token: string; symbol: string; total_received_raw: string; payout_count: number }>;
@@ -292,7 +268,7 @@ export class Repo {
   async walletHistory(owner: string, limit: number): Promise<unknown[]> {
     const { data, error } = await this.db
       .from('payouts')
-      .select('cycle_id, token, symbol, amount_raw, status, tx_hash, created_at, confirmed_at')
+      .select('cycle_id, token, symbol, amount_raw::text, status, tx_id, created_at, confirmed_at')
       .eq('owner', owner)
       .order('created_at', { ascending: false })
       .limit(limit);

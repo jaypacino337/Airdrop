@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   applicationName: siteConfig.name,
-  keywords: ['Uranium Strategy', 'USTR', 'uranium', 'xU3O8', 'Pons', 'Robinhood Chain', 'airdrop', 'creator fees'],
+  keywords: ['Uranium Strategy', 'USTR', 'uranium', 'Solana', 'pump.fun', 'SPL token', 'airdrop', 'creator fees'],
   openGraph: {
     title: `${siteConfig.name} — uranium airdrops every 5 minutes`,
     description: siteConfig.description,
@@ -28,8 +28,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: 'light',
-  themeColor: '#ffffff',
+  colorScheme: 'dark',
+  themeColor: '#0c0d09',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

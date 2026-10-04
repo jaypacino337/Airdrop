@@ -57,7 +57,7 @@ export function Footer() {
                       rel="noopener noreferrer"
                       className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      {siteConfig.ticker} contract
+                      {siteConfig.ticker} mint
                     </a>
                   </li>
                 ) : null}
@@ -83,19 +83,19 @@ export function Footer() {
                         rel="noopener noreferrer"
                         className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                       >
-                        {token.symbol} contract
+                        {token.symbol} mint
                       </a>
                     </li>
                   ))}
-                {siteConfig.links.pons ? (
+                {siteConfig.links.pump ? (
                   <li>
                     <a
-                      href={siteConfig.links.pons}
+                      href={siteConfig.links.pump}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      Trade on Pons
+                      Trade on pump.fun
                     </a>
                   </li>
                 ) : null}
@@ -122,7 +122,7 @@ export function Footer() {
             verifiable on-chain.
           </p>
           <p className="max-w-lg sm:text-right">
-            An independent community project — not affiliated with Robinhood, Pons, uranium.io or
+            An independent community project — not affiliated with pump.fun, Solana, uranium.io or
             any uranium producer. &quot;Uranium&quot; refers to tokenized market exposure, not
             physical material. Nothing here is financial advice. Crypto assets are volatile and you
             can lose everything you put in.

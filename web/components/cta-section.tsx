@@ -21,14 +21,14 @@ export function CtaSection() {
           Hold {siteConfig.ticker} and you are — paid in uranium, automatically.
         </p>
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          {siteConfig.links.pons ? (
+          {siteConfig.links.pump ? (
             <a
-              href={siteConfig.links.pons}
+              href={siteConfig.links.pump}
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center gap-2 rounded-md bg-primary px-8 py-3 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-primary-foreground transition-opacity hover:opacity-90"
             >
-              Get {siteConfig.ticker} on Pons
+              Get {siteConfig.ticker} on pump.fun
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>
           ) : null}

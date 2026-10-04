@@ -30,8 +30,9 @@ export function toBigInt(raw: string | number | null | undefined): bigint {
   }
 }
 
-export function formatNative(wei: string | number | null | undefined, digits = 4): string {
-  const value = Number(toBigInt(wei)) / 1e18;
+/** Lamports -> SOL for display. */
+export function formatSol(lamports: string | number | null | undefined, digits = 4): string {
+  const value = Number(toBigInt(lamports)) / 1e9;
   return value.toLocaleString('en-US', { maximumFractionDigits: digits });
 }
 
@@ -59,6 +60,7 @@ export function timeAgo(iso: string | null | undefined): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-export function isEvmAddress(value: string): boolean {
-  return /^0x[0-9a-fA-F]{40}$/.test(value.trim());
+/** A base58 Solana address: 32–44 chars, no 0 / O / I / l. Case-sensitive. */
+export function isSolanaAddress(value: string): boolean {
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value.trim());
 }
