@@ -8,7 +8,8 @@ export const revalidate = 0;
 
 const EMPTY: AirdropStats = {
   completed_cycles: 0,
-  total_native_spent_wei: '0',
+  total_fees_claimed_raw: '0',
+  total_native_spent_raw: '0',
   total_payouts: 0,
   unique_recipients: 0,
   last_completed_at: null,
@@ -42,8 +43,12 @@ export async function GET() {
 
   try {
     const [stats, rewardTotals, cycles] = await Promise.all([
-      supabaseSingle<AirdropStats>('airdrop_stats?select=*'),
-      supabaseSelect<RewardTotal>('reward_totals?select=*'),
+      supabaseSingle<AirdropStats>(
+        'airdrop_stats?select=completed_cycles,total_fees_claimed_raw::text,total_native_spent_raw::text,total_payouts,unique_recipients,last_completed_at,last_eligible_count',
+      ),
+      supabaseSelect<RewardTotal>(
+        'reward_totals?select=token,symbol,distributed_raw::text,payout_count,recipient_count,last_payout_at',
+      ),
       supabaseSelect<Cycle>('cycles?select=*,cycle_rewards(*)&order=started_at.desc&limit=1'),
     ]);
 

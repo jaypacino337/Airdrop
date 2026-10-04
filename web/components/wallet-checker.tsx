@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ArrowRight, CheckCircle2, Loader2, Search, XCircle } from 'lucide-react';
 import { decimalsFor, explorerTx, maxWalletSharePct, rewardList, siteConfig } from '@/lib/config';
-import { formatNumber, formatRaw, isEvmAddress, shortAddress, timeAgo } from '@/lib/format';
+import { formatNumber, formatRaw, isSolanaAddress, shortAddress, timeAgo } from '@/lib/format';
 import type { WalletResponse } from '@/lib/types';
 
 type State =
@@ -20,8 +20,8 @@ export function WalletChecker() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     const value = address.trim();
-    if (!isEvmAddress(value)) {
-      setState({ kind: 'error', message: 'That does not look like a 0x wallet address.' });
+    if (!isSolanaAddress(value)) {
+      setState({ kind: 'error', message: 'That does not look like a Solana wallet address.' });
       return;
     }
 
@@ -58,7 +58,7 @@ export function WalletChecker() {
             id="wallet"
             value={address}
             onChange={(event) => setAddress(event.target.value)}
-            placeholder="0x…"
+            placeholder="Solana wallet address"
             spellCheck={false}
             autoComplete="off"
             className="w-full rounded-md border border-border bg-background py-2.5 pl-9 pr-3 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none"
@@ -120,7 +120,7 @@ function WalletResult({ data }: { data: WalletResponse }) {
               ? `Balance ${formatNumber(data.balanceUi)} ${siteConfig.ticker} · ${(
                   data.shareBps / 100
                 ).toFixed(2)}% of each drop${data.capped ? ` (capped at ${maxWalletSharePct}%)` : ''}.`
-              : `This wallet was below the ${formatNumber(siteConfig.minEligibleTokens)} ${siteConfig.ticker} minimum, or was excluded as a contract.`}
+              : `This wallet was below the ${formatNumber(siteConfig.minEligibleTokens)} ${siteConfig.ticker} minimum, or was excluded as a pool or program-owned account.`}
           </p>
         </div>
       </div>
@@ -156,14 +156,14 @@ function WalletResult({ data }: { data: WalletResponse }) {
                 {formatRaw(payout.amount_raw, decimalsFor(payout.token, payout.symbol), 4)}{' '}
                 <span className="text-xs font-normal text-muted-foreground">{payout.symbol}</span>
               </span>
-              {payout.tx_hash && explorerTx(payout.tx_hash) ? (
+              {payout.tx_id && explorerTx(payout.tx_id) ? (
                 <a
-                  href={explorerTx(payout.tx_hash)}
+                  href={explorerTx(payout.tx_id)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-mono text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
-                  {shortAddress(payout.tx_hash, 4)}
+                  {shortAddress(payout.tx_id, 4)}
                 </a>
               ) : (
                 <span className="font-mono text-xs text-muted-foreground">{payout.status}</span>

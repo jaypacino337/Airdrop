@@ -2,7 +2,7 @@ import { getContext } from './context.js';
 import { createServer } from './api/server.js';
 import { runCycle } from './cycle.js';
 import { loadEnv } from './env.js';
-import { Repo } from './db/repo.js';
+import { SupabaseRepo } from './db/repo.js';
 import { getSupabase } from './db/supabase.js';
 import { errorMessage, log, setLogLevel } from './logger.js';
 import { checkReadiness } from './readiness.js';
@@ -12,7 +12,7 @@ import { checkReadiness } from './readiness.js';
  * small read API the website and health check use.
  *
  * Supabase is enough to boot. Without the RPC, treasury key and token
- * addresses the process still comes up and serves a healthy /health that says
+ * mints the process still comes up and serves a healthy /health that says
  * what is missing — a fresh deploy goes green first and gets configured after.
  */
 async function main(): Promise<void> {
@@ -20,7 +20,7 @@ async function main(): Promise<void> {
   setLogLevel(env.LOG_LEVEL);
 
   const readiness = checkReadiness(env);
-  const repo = new Repo(getSupabase(env));
+  const repo = new SupabaseRepo(getSupabase(env));
 
   let timer: NodeJS.Timeout | undefined;
   let nextRunAt = Date.now() + (env.RUN_ON_BOOT ? 0 : env.CYCLE_INTERVAL_MS);

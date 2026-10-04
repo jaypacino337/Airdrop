@@ -1,15 +1,10 @@
-import type { JsonRpcProvider, Wallet } from 'ethers';
-import { assertChain, getProvider, getWallet, resolveToken, type TokenInfo } from './chain/evm.js';
+import type { Connection, Keypair } from '@solana/web3.js';
+import { assertCluster, getConnection, parseSecretKey, resolveToken, type TokenInfo } from './chain/solana.js';
 import type { Env, RewardTokenConfig } from './env.js';
-import { Repo } from './db/repo.js';
+import { SupabaseRepo, type LedgerRepo } from './db/repo.js';
 import { getSupabase } from './db/supabase.js';
 import { log } from './logger.js';
 import { toRaw } from './util/amount.js';
-
-const DEAD_ADDRESSES = [
-  '0x0000000000000000000000000000000000000000',
-  '0x000000000000000000000000000000000000dead',
-];
 
 /** One configured reward token, resolved against the chain. */
 export interface RewardToken extends RewardTokenConfig {
@@ -18,11 +13,13 @@ export interface RewardToken extends RewardTokenConfig {
 
 export interface Context {
   env: Env;
-  provider: JsonRpcProvider;
-  wallet: Wallet;
+  conn: Connection;
+  /** Receives the creator fees, holds the rewards and signs every payout. */
+  treasury: Keypair;
   projectToken: TokenInfo;
   rewards: RewardToken[];
-  repo: Repo;
+  repo: LedgerRepo;
+  /** Owners never paid, on top of the snapshot's own PDA/burn exclusions. */
   excluded: Set<string>;
   minEligibleRaw: bigint;
 }
@@ -31,14 +28,19 @@ let context: Context | undefined;
 
 export async function getContext(env: Env): Promise<Context> {
   if (context) return context;
+  context = await buildContext(env, { conn: getConnection(env), repo: new SupabaseRepo(getSupabase(env)) });
+  return context;
+}
 
-  const provider = getProvider(env);
-  await assertChain(env);
-  const wallet = getWallet(env);
+/** Resolves every mint on chain. Injectable connection and ledger for tests and localnet runs. */
+export async function buildContext(env: Env, deps: { conn: Connection; repo: LedgerRepo }): Promise<Context> {
+  const { conn, repo } = deps;
+  await assertCluster(conn, env.SOLANA_CLUSTER);
+  const treasury = parseSecretKey(env.TREASURY_SECRET_KEY);
 
   const [projectToken, ...rewardInfos] = await Promise.all([
-    resolveToken(env, env.PROJECT_TOKEN_ADDRESS),
-    ...env.rewardTokens.map((token) => resolveToken(env, token.token)),
+    resolveToken(conn, env.PROJECT_TOKEN_MINT.trim()),
+    ...env.rewardTokens.map((token) => resolveToken(conn, token.mint)),
   ]);
 
   const rewards: RewardToken[] = env.rewardTokens.map((token, index) => ({
@@ -47,39 +49,31 @@ export async function getContext(env: Env): Promise<Context> {
   }));
 
   const excluded = new Set<string>([
-    ...DEAD_ADDRESSES,
     ...env.EXCLUDED_WALLETS,
-    wallet.address.toLowerCase(),
-    projectToken.address,
-    ...rewards.map((reward) => reward.info.address),
+    treasury.publicKey.toBase58(),
+    projectToken!.mint,
+    ...rewards.map((reward) => reward.info.mint),
   ]);
 
-  const minEligibleRaw = toRaw(String(env.MIN_ELIGIBLE_TOKENS), projectToken.decimals);
+  const minEligibleRaw = toRaw(String(env.MIN_ELIGIBLE_TOKENS), projectToken!.decimals);
 
   log.info('engine ready', {
-    treasury: wallet.address,
-    projectToken: projectToken.address,
-    projectDecimals: projectToken.decimals,
+    treasury: treasury.publicKey.toBase58(),
+    projectToken: projectToken!.mint,
+    projectDecimals: projectToken!.decimals,
+    projectProgram: projectToken!.programId.toBase58(),
     rewards: rewards.map((reward) => ({
       symbol: reward.symbol,
-      token: reward.info.address,
+      mint: reward.info.mint,
       weightBps: reward.weightBps,
       decimals: reward.info.decimals,
     })),
     minEligibleTokens: env.MIN_ELIGIBLE_TOKENS,
     maxWalletShareBps: env.MAX_WALLET_SHARE_BPS,
+    feeClaim: env.FEE_CLAIM,
+    swapProvider: env.SWAP_PROVIDER,
     dryRun: env.DRY_RUN,
   });
 
-  context = {
-    env,
-    provider,
-    wallet,
-    projectToken,
-    rewards,
-    repo: new Repo(getSupabase(env)),
-    excluded,
-    minEligibleRaw,
-  };
-  return context;
+  return { env, conn, treasury, projectToken: projectToken!, rewards, repo, excluded, minEligibleRaw };
 }
