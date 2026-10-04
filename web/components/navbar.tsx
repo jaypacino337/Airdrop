@@ -44,7 +44,7 @@ export function Navbar() {
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-1.5 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
-              title="View the USTR contract on the explorer"
+              title="View the USTR mint on Solscan"
             >
               {shortAddress(siteConfig.tokenAddress)}
               <ExternalLink className="h-3 w-3" />
